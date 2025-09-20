@@ -13,7 +13,7 @@ type Route struct {
 	Handler http.Handler
 }
 
-type Api struct {
+type API struct {
 	updateCounterService *updateCounterV0Service.Service
 	updateGaugeService   *updateGaugeV0Service.Service
 }
@@ -21,14 +21,14 @@ type Api struct {
 func New(
 	updateCounterService *updateCounterV0Service.Service,
 	updateGaugeService *updateGaugeV0Service.Service,
-) *Api {
-	return &Api{
+) *API {
+	return &API{
 		updateCounterService: updateCounterService,
 		updateGaugeService:   updateGaugeService,
 	}
 }
 
-func (api Api) Routes() []Route {
+func (api API) Routes() []Route {
 	return []Route{
 		{
 			Method: http.MethodPost,

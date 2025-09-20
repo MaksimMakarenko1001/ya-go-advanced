@@ -19,7 +19,7 @@ type DI struct {
 		updateGaugeService   *updateGaugeV0Service.Service
 	}
 	api struct {
-		external *handler.Api
+		external *handler.API
 	}
 }
 
