@@ -27,7 +27,7 @@ func (di *DI) Init() {
 	di.loadConfig()
 	di.initRepositories()
 	di.initServices()
-	di.initApi()
+	di.initAPI()
 }
 
 func (di *DI) loadConfig() {
@@ -44,7 +44,7 @@ func (di *DI) initServices() {
 	di.services.updateGaugeService = updateGaugeV0Service.New(di.repositories.metricStorage)
 }
 
-func (di *DI) initApi() {
+func (di *DI) initAPI() {
 	di.api.external = handler.New(
 		di.services.updateCounterService,
 		di.services.updateGaugeService,
