@@ -34,7 +34,7 @@ func MiddlewareTypeContent(next http.Handler) http.Handler {
 	})
 }
 
-func MiddlewareUrlPath(next http.Handler) http.Handler {
+func MiddlewareURLPath(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, rq *http.Request) {
 		if len(strings.Split(rq.URL.Path, "/")) != 5 {
 			http.Error(w, "invalid URL", http.StatusNotFound)

@@ -6,29 +6,29 @@ import (
 )
 
 var ErrInternalServer = &Error{
-	Message:    "Internal error",
-	Code:       "INTERNAL_SERVER_ERROR",
-	HttpStatus: http.StatusInternalServerError,
+	Message: "Internal error",
+	Code:    "INTERNAL_SERVER_ERROR",
+	Status:  http.StatusInternalServerError,
 }
 
 var ErrNotFound = &Error{
-	Message:    "Not found",
-	Code:       "NOT_FOUND",
-	HttpStatus: http.StatusNotFound,
+	Message: "Not found",
+	Code:    "NOT_FOUND",
+	Status:  http.StatusNotFound,
 }
 
 var ErrBadRequest = &Error{
-	Message:    "Bad request",
-	Code:       "BAD_REQUEST",
-	HttpStatus: http.StatusBadRequest,
+	Message: "Bad request",
+	Code:    "BAD_REQUEST",
+	Status:  http.StatusBadRequest,
 }
 
 type ErrorCode string
 
 type Error struct {
-	Message    string
-	Code       ErrorCode
-	HttpStatus int
+	Message string
+	Code    ErrorCode
+	Status  int
 }
 
 func (e *Error) Error() string {
@@ -44,8 +44,8 @@ func (e *Error) HTTPStatus() int {
 	if e == nil {
 		return http.StatusOK
 	}
-	if e.HttpStatus < 100 || e.HttpStatus >= 600 {
+	if e.Status < 100 || e.Status >= 600 {
 		return http.StatusInternalServerError
 	}
-	return e.HttpStatus
+	return e.Status
 }
