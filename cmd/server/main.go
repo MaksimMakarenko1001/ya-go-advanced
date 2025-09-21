@@ -7,13 +7,13 @@ import (
 )
 
 func main() {
-	log.Println("application starting")
+	log.Println("server starting")
 
 	if err := run(); err != nil {
 		panic(err)
 	}
 
-	log.Println("application stoped")
+	log.Println("server stoped")
 }
 
 func run() error {
