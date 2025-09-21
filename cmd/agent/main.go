@@ -45,6 +45,7 @@ func run() error {
 
 		case <-reportTicker.C:
 			log.Printf("Reporting metrics")
+			// TODO implement fan-out technique
 			for name, value := range gaugeMetrics {
 				cli.SendGaugeMetric(name, value)
 			}
