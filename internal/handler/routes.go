@@ -14,6 +14,7 @@ type Route struct {
 }
 
 type API struct {
+	router               *http.ServeMux
 	updateCounterService *updateCounterService.Service
 	updateGaugeService   *updateGaugeService.Service
 }
@@ -23,13 +24,18 @@ func New(
 	updateGaugeService *updateGaugeService.Service,
 ) *API {
 	return &API{
+		router:               http.NewServeMux(),
 		updateCounterService: updateCounterService,
 		updateGaugeService:   updateGaugeService,
 	}
 }
 
-func (api API) Routes() []Route {
-	return []Route{
+func (api API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	api.router.ServeHTTP(w, r)
+}
+
+func (api API) Route() {
+	api.AddRoutes([]Route{
 		{
 			Method: http.MethodPost,
 			Path:   "/update/",
@@ -57,5 +63,19 @@ func (api API) Routes() []Route {
 				MiddlewareMetricName,
 			),
 		},
+	})
+}
+
+func (api API) AddRoute(route Route) {
+	if route.Method == "" {
+		api.router.Handle(route.Path, route.Handler)
+	} else {
+		api.router.Handle(route.Method+" "+route.Path, route.Handler)
+	}
+}
+
+func (api API) AddRoutes(routes []Route) {
+	for _, r := range routes {
+		api.AddRoute(r)
 	}
 }

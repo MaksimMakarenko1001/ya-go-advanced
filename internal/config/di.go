@@ -53,15 +53,7 @@ func (di *DI) initAPI() {
 
 func (di *DI) Start() error {
 	config := di.config.HTTP
-	mux := http.NewServeMux()
 
-	for _, route := range di.api.external.Routes() {
-		if route.Method == "" {
-			mux.Handle(route.Path, route.Handler)
-		} else {
-			mux.Handle(route.Method+" "+route.Path, route.Handler)
-		}
-	}
-
-	return http.ListenAndServe(":"+config.Port, mux)
+	di.api.external.Route()
+	return http.ListenAndServe(":"+config.Port, di.api.external)
 }
