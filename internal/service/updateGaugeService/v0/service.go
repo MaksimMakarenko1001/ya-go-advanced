@@ -1,4 +1,4 @@
-package updateGaugeV0Service
+package v0
 
 import (
 	"errors"

@@ -1,4 +1,4 @@
-package memStorage
+package inmemory
 
 type Repository struct {
 	collection map[string]any

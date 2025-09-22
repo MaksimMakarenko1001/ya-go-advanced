@@ -4,19 +4,19 @@ import (
 	"net/http"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/handler"
-	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/repository/memStorage"
-	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateCounterV0Service"
-	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateGaugeV0Service"
+	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/repository/storage/inmemory"
+	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateCounterService/v0"
+	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateGaugeService/v0"
 )
 
 type DI struct {
 	config       *diConfig
 	repositories struct {
-		metricStorage *memStorage.Repository
+		metricStorage *inmemory.Repository
 	}
 	services struct {
-		updateCounterService *updateCounterV0Service.Service
-		updateGaugeService   *updateGaugeV0Service.Service
+		updateCounterService *updateCounterService.Service
+		updateGaugeService   *updateGaugeService.Service
 	}
 	api struct {
 		external *handler.API
@@ -36,12 +36,12 @@ func (di *DI) loadConfig() {
 }
 
 func (di *DI) initRepositories() {
-	di.repositories.metricStorage = memStorage.New()
+	di.repositories.metricStorage = inmemory.New()
 }
 
 func (di *DI) initServices() {
-	di.services.updateCounterService = updateCounterV0Service.New(di.repositories.metricStorage)
-	di.services.updateGaugeService = updateGaugeV0Service.New(di.repositories.metricStorage)
+	di.services.updateCounterService = updateCounterService.New(di.repositories.metricStorage)
+	di.services.updateGaugeService = updateGaugeService.New(di.repositories.metricStorage)
 }
 
 func (di *DI) initAPI() {

@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateCounterV0Service"
-	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateGaugeV0Service"
+	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateCounterService/v0"
+	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateGaugeService/v0"
 )
 
 type Route struct {
@@ -14,13 +14,13 @@ type Route struct {
 }
 
 type API struct {
-	updateCounterService *updateCounterV0Service.Service
-	updateGaugeService   *updateGaugeV0Service.Service
+	updateCounterService *updateCounterService.Service
+	updateGaugeService   *updateGaugeService.Service
 }
 
 func New(
-	updateCounterService *updateCounterV0Service.Service,
-	updateGaugeService *updateGaugeV0Service.Service,
+	updateCounterService *updateCounterService.Service,
+	updateGaugeService *updateGaugeService.Service,
 ) *API {
 	return &API{
 		updateCounterService: updateCounterService,

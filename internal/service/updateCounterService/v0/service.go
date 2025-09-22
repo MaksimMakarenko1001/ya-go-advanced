@@ -1,4 +1,4 @@
-package updateCounterV0Service
+package v0
 
 import (
 	"errors"
