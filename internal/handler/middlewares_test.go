@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func OKHandler(rw http.ResponseWriter, r *http.Request) {
+func testHandler(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 }
 
@@ -48,7 +48,7 @@ func TestMiddlewareTypeContent(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
 
-			middleware := handler.MiddlewareTypeContent(http.HandlerFunc(OKHandler))
+			middleware := handler.MiddlewareTypeContent(http.HandlerFunc(testHandler))
 			middleware.ServeHTTP(w, request)
 
 			res := w.Result()
@@ -103,7 +103,7 @@ func TestMiddlewareURLPath(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.URL, nil)
 			w := httptest.NewRecorder()
 
-			middleware := handler.MiddlewareURLPath(http.HandlerFunc(OKHandler))
+			middleware := handler.MiddlewareURLPath(http.HandlerFunc(testHandler))
 			middleware.ServeHTTP(w, request)
 
 			res := w.Result()
@@ -158,7 +158,7 @@ func TestMiddlewareMetricType(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/foo/"+tt.metricType, nil)
 			w := httptest.NewRecorder()
 
-			middleware := handler.MiddlewareMetricType(http.HandlerFunc(OKHandler))
+			middleware := handler.MiddlewareMetricType(http.HandlerFunc(testHandler))
 			middleware.ServeHTTP(w, request)
 
 			res := w.Result()
@@ -205,7 +205,7 @@ func TestMiddlewareMetricName(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/foo/bar/"+tt.metricName, nil)
 			w := httptest.NewRecorder()
 
-			middleware := handler.MiddlewareMetricName(http.HandlerFunc(OKHandler))
+			middleware := handler.MiddlewareMetricName(http.HandlerFunc(testHandler))
 			middleware.ServeHTTP(w, request)
 
 			res := w.Result()
