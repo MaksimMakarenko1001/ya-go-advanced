@@ -1,6 +1,17 @@
 package agent
 
-import "time"
+import (
+	"flag"
+	"time"
+)
+
+var (
+	httpCfg HTTPClientConfig
+	options struct {
+		pool   int
+		report int
+	}
+)
 
 type Config struct {
 	HTTP           HTTPClientConfig `json:"http"`
@@ -9,12 +20,16 @@ type Config struct {
 }
 
 func (cfg *Config) LoadConfig() {
-	cfg.HTTP = HTTPClientConfig{
-		Address: `localhost:8080`,
-		Timeout: time.Second * 10,
-	}
-	cfg.PollInterval = time.Second * 2
-	cfg.ReportInterval = time.Second * 10
+	flag.StringVar(&httpCfg.Address, "a", `localhost:8080`, "agent net address")
+	flag.IntVar(&options.pool, "p", 2, "pool interval in seconds")
+	flag.IntVar(&options.report, "r", 10, "report interval in seconds")
+
+	cfg.HTTP = httpCfg
+	cfg.HTTP.Timeout = time.Second * 10
+
+	cfg.PollInterval = time.Second * time.Duration(options.pool)
+	cfg.ReportInterval = time.Second * time.Duration(options.report)
+
 }
 
 type HTTPClientConfig struct {
