@@ -24,6 +24,8 @@ func (cfg *Config) LoadConfig() {
 	flag.IntVar(&options.pool, "p", 2, "pool interval in seconds")
 	flag.IntVar(&options.report, "r", 10, "report interval in seconds")
 
+	flag.Parse()
+
 	cfg.HTTP = httpCfg
 	cfg.HTTP.Timeout = time.Second * 10
 
