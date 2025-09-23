@@ -5,24 +5,6 @@ import (
 	"html/template"
 )
 
-const html = `<html>
-    <head>
-    <title></title>
-    </head>
-    <body>
-        <table>
-			<tbody>
-				{{ range . }}
-				<tr>
-					<td>{{ .Name }}</td>
-					<td>{{ .Value }}</td>
-				</tr>
-				{{ end }}
-			</tbody>
-		</table>
-    </body>
-</html>`
-
 type Service struct {
 	metricRepository MetricRepository
 }
@@ -33,7 +15,7 @@ func New(metricRepo MetricRepository) *Service {
 	}
 }
 
-func (srv *Service) Do() (index string, err error) {
+func (srv *Service) Do(html string) (index string, err error) {
 	list := srv.metricRepository.List()
 
 	tmpl := template.Must(template.New("html").Parse(html))

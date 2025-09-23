@@ -10,9 +10,23 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/pkg"
 )
 
-type Table struct {
-	Content string
-}
+const html = `<html>
+    <head>
+    <title></title>
+    </head>
+    <body>
+        <table>
+			<tbody>
+				{{ range . }}
+				<tr>
+					<td>{{ .Name }}</td>
+					<td>{{ .Value }}</td>
+				</tr>
+				{{ end }}
+			</tbody>
+		</table>
+    </body>
+</html>`
 
 type (
 	UpdateGaugeService   func(metricName string, metricValue float64) (err error)
@@ -21,13 +35,13 @@ type (
 	GetGaugeService   func(metricName string) (metricValue *float64, err error)
 	GetCounterService func(metricName string) (metricValue *int64, err error)
 
-	ListMetricService func() (template string, err error)
+	ListMetricService func(template string) (index string, err error)
 )
 
 func DoListMetricResponse(srv ListMetricService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		index, err := srv()
+		index, err := srv(html)
 		if err != nil {
 			WriteError(w, err)
 			return
