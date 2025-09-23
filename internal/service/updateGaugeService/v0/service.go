@@ -1,7 +1,7 @@
 package v0
 
 import (
-	"errors"
+	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/pkg"
 )
 
 type Service struct {
@@ -18,7 +18,7 @@ func (srv *Service) Do(
 	metricName string, metricValue float64,
 ) (err error) {
 	if ok := srv.metricRepository.Update(metricName, metricValue); !ok {
-		return errors.New("error occurred in updateGaugeV0Service.Do")
+		return pkg.ErrBadRequest
 	}
 
 	return nil
