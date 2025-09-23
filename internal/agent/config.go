@@ -10,7 +10,7 @@ type Config struct {
 
 func (cfg *Config) LoadConfig() {
 	cfg.HTTP = HTTPClientConfig{
-		Host:    `localhost:8080`,
+		Address: `localhost:8080`,
 		Timeout: time.Second * 10,
 	}
 	cfg.PollInterval = time.Second * 2
@@ -18,6 +18,6 @@ func (cfg *Config) LoadConfig() {
 }
 
 type HTTPClientConfig struct {
-	Host    string        `json:"host"`
+	Address string        `json:"address"`
 	Timeout time.Duration `json:"timeout"`
 }

@@ -16,7 +16,7 @@ func NewClient(cfg HTTPClientConfig) *Client {
 	httpClient := &http.Client{Timeout: cfg.Timeout}
 
 	return &Client{
-		host:       cfg.Host,
+		host:       cfg.Address,
 		httpClient: httpClient,
 	}
 }

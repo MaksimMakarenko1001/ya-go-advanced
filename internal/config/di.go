@@ -71,5 +71,5 @@ func (di *DI) Start() error {
 	config := di.config.HTTP
 
 	di.api.external.Route()
-	return http.ListenAndServe(":"+config.Port, di.api.external)
+	return http.ListenAndServe(config.Address, di.api.external)
 }

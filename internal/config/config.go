@@ -6,10 +6,10 @@ type diConfig struct {
 
 func (cfg *diConfig) loadConfig() {
 	cfg.HTTP = HTTPServerConfig{
-		Port: "8080",
+		Address: `:8080`,
 	}
 }
 
 type HTTPServerConfig struct {
-	Port string `json:"port"`
+	Address string `json:"address"`
 }
