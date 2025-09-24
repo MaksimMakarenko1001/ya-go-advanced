@@ -16,13 +16,11 @@ const html = `<html>
     </head>
     <body>
         <table>
-			<tbody>
-				{{ range . }}
+			<tbody>{{ range . }}
 				<tr>
 					<td>{{ .Name }}</td>
 					<td>{{ .Value }}</td>
-				</tr>
-				{{ end }}
+				</tr>{{ end }}
 			</tbody>
 		</table>
     </body>
