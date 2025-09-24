@@ -3,6 +3,8 @@ package v0
 import (
 	"bytes"
 	"html/template"
+	"slices"
+	"strings"
 )
 
 type Service struct {
@@ -17,6 +19,10 @@ func New(metricRepo MetricRepository) *Service {
 
 func (srv *Service) Do(html string) (index string, err error) {
 	list := srv.metricRepository.List()
+
+	slices.SortFunc(list, func(a, b MetricItem) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	tmpl := template.Must(template.New("html").Parse(html))
 
