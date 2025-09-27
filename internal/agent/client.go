@@ -32,7 +32,7 @@ func (c *Client) SendGaugeMetric(metricName string, value float64) (err error) {
 
 	resp, err := http.Post(u.String(), "text/plain", nil)
 	if err != nil {
-		return fmt.Errorf("error sending gauge metric: %v", err)
+		return fmt.Errorf("error sending gauge metric: %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -55,7 +55,7 @@ func (c *Client) SendCounterMetric(metricName string, value int64) (err error) {
 
 	resp, err := http.Post(u.String(), "text/plain", nil)
 	if err != nil {
-		return fmt.Errorf("error sending counter metric: %v", err)
+		return fmt.Errorf("error sending counter metric: %w", err)
 	}
 
 	defer resp.Body.Close()
