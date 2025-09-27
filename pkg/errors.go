@@ -23,6 +23,12 @@ var ErrBadRequest = &Error{
 	Status:  http.StatusBadRequest,
 }
 
+var allowStatusError = map[int]struct{}{
+	http.StatusInternalServerError: {},
+	http.StatusNotFound:            {},
+	http.StatusBadRequest:          {},
+}
+
 type ErrorCode string
 
 type Error struct {
@@ -44,7 +50,7 @@ func (e *Error) HTTPStatus() int {
 	if e == nil {
 		return http.StatusOK
 	}
-	if e.Status < 100 || e.Status >= 600 {
+	if _, ok := allowStatusError[e.Status]; !ok {
 		return http.StatusInternalServerError
 	}
 	return e.Status
