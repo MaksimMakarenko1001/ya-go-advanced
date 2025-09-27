@@ -35,6 +35,7 @@ type Error struct {
 	Message string
 	Code    ErrorCode
 	Status  int
+	Info    string
 }
 
 func (e *Error) Error() string {
@@ -42,7 +43,11 @@ func (e *Error) Error() string {
 		return ""
 	}
 
-	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
+	if e.Info == "" {
+		return fmt.Sprintf("[%s] %s", e.Code, e.Message)
+	}
+
+	return fmt.Sprintf("[%s] %s (%s)", e.Code, e.Message, e.Info)
 
 }
 
@@ -54,4 +59,17 @@ func (e *Error) HTTPStatus() int {
 		return http.StatusInternalServerError
 	}
 	return e.Status
+}
+
+func (e *Error) SetInfo(s string) *Error {
+	return &Error{
+		Message: e.Message,
+		Code:    e.Code,
+		Status:  e.Status,
+		Info:    s,
+	}
+}
+
+func (e *Error) SetInfof(s string, v ...any) *Error {
+	return e.SetInfo(fmt.Sprintf(s, v...))
 }
