@@ -2,14 +2,20 @@ package agent
 
 import (
 	"fmt"
+	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strconv"
+	"time"
 )
 
 type Client struct {
 	httpClient *http.Client
 	host       string
+	memStats   runtime.MemStats
+	pollCount  int64
 }
 
 func NewClient(cfg HTTPClientConfig) *Client {
@@ -21,7 +27,7 @@ func NewClient(cfg HTTPClientConfig) *Client {
 	}
 }
 
-func (c *Client) SendGaugeMetric(metricName string, value float64) (err error) {
+func (c *Client) sendGaugeMetric(metricName string, value float64) (err error) {
 	valueStr := strconv.FormatFloat(value, 'f', -1, 64)
 
 	u := url.URL{
@@ -44,7 +50,7 @@ func (c *Client) SendGaugeMetric(metricName string, value float64) (err error) {
 	return nil
 }
 
-func (c *Client) SendCounterMetric(metricName string, value int64) (err error) {
+func (c *Client) sendCounterMetric(metricName string, value int64) (err error) {
 	valueStr := strconv.FormatInt(value, 10)
 
 	u := url.URL{
@@ -65,4 +71,83 @@ func (c *Client) SendCounterMetric(metricName string, value int64) (err error) {
 	}
 
 	return nil
+}
+
+func (c *Client) collectCounterMetrics() map[string]int64 {
+	c.pollCount += 1
+	return map[string]int64{
+		"PollCount": c.pollCount,
+	}
+}
+
+func (c *Client) collectGaugeMetrics() map[string]float64 {
+	runtime.ReadMemStats(&c.memStats)
+	return map[string]float64{
+		"Alloc":         float64(c.memStats.Alloc),
+		"BuckHashSys":   float64(c.memStats.BuckHashSys),
+		"Frees":         float64(c.memStats.Frees),
+		"GCCPUFraction": c.memStats.GCCPUFraction,
+		"GCSys":         float64(c.memStats.GCSys),
+		"HeapAlloc":     float64(c.memStats.HeapAlloc),
+		"HeapIdle":      float64(c.memStats.HeapIdle),
+		"HeapInuse":     float64(c.memStats.HeapInuse),
+		"HeapObjects":   float64(c.memStats.HeapObjects),
+		"HeapReleased":  float64(c.memStats.HeapReleased),
+		"HeapSys":       float64(c.memStats.HeapSys),
+		"LastGC":        float64(c.memStats.LastGC),
+		"Lookups":       float64(c.memStats.Lookups),
+		"MCacheInuse":   float64(c.memStats.MCacheInuse),
+		"MCacheSys":     float64(c.memStats.MCacheSys),
+		"MSpanInuse":    float64(c.memStats.MSpanInuse),
+		"MSpanSys":      float64(c.memStats.MSpanSys),
+		"Mallocs":       float64(c.memStats.Mallocs),
+		"NextGC":        float64(c.memStats.NextGC),
+		"NumForcedGC":   float64(c.memStats.NumForcedGC),
+		"NumGC":         float64(c.memStats.NumGC),
+		"OtherSys":      float64(c.memStats.OtherSys),
+		"PauseTotalNs":  float64(c.memStats.PauseTotalNs),
+		"StackInuse":    float64(c.memStats.StackInuse),
+		"StackSys":      float64(c.memStats.StackSys),
+		"Sys":           float64(c.memStats.Sys),
+		"TotalAlloc":    float64(c.memStats.TotalAlloc),
+		"RandomValue":   rand.Float64(),
+	}
+
+}
+
+func (c *Client) Srart(pollInterval time.Duration, reportInterval time.Duration) error {
+	ticker := time.NewTicker(pollInterval)
+	reportTicker := time.NewTicker(reportInterval)
+	defer ticker.Stop()
+	defer reportTicker.Stop()
+
+	var gaugeMetrics map[string]float64
+	var counterMetrics map[string]int64
+	var err error
+
+	for {
+		select {
+		case <-ticker.C:
+			log.Printf("Collecting metrics")
+			gaugeMetrics = c.collectGaugeMetrics()
+			counterMetrics = c.collectCounterMetrics()
+
+		case <-reportTicker.C:
+			log.Printf("Reporting metrics")
+			// TODO implement fan-out technique
+			for name, value := range gaugeMetrics {
+				err = c.sendGaugeMetric(name, value)
+				if err != nil {
+					return err
+				}
+			}
+			for name, value := range counterMetrics {
+				err = c.sendCounterMetric(name, value)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 }
