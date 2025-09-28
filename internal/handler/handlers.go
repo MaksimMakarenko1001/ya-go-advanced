@@ -146,7 +146,5 @@ func WriteError(w http.ResponseWriter, err error) {
 		log.Println(err.Error())
 		errE = pkg.ErrInternalServer
 	}
-
-	w.WriteHeader(errE.HTTPStatus())
-
+	http.Error(w, errE.Error(), errE.HTTPStatus())
 }

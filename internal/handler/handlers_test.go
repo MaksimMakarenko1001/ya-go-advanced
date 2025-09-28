@@ -123,15 +123,15 @@ func TestDoGetCounterResponse(t *testing.T) {
 			metricName: "not_found",
 			expected: expected{
 				code: 404,
-				body: "",
+				body: "[NOT_FOUND] Not found (`not_found` not found)\n",
 			},
 		},
 		{
 			name:       "negative test [exists other type]",
 			metricName: "not_ok_counter",
 			expected: expected{
-				code: 404,
-				body: "",
+				code: 400,
+				body: "[BAD_REQUEST] Bad request (`not_ok_counter` type mismatch)\n",
 			},
 		},
 	}
@@ -175,15 +175,15 @@ func TestDoGetGaugeResponse(t *testing.T) {
 			metricName: "not_found",
 			expected: expected{
 				code: 404,
-				body: "",
+				body: "[NOT_FOUND] Not found (`not_found` not found)\n",
 			},
 		},
 		{
 			name:       "negative test [exists other type]",
 			metricName: "not_ok_gauge",
 			expected: expected{
-				code: 404,
-				body: "",
+				code: 400,
+				body: "[BAD_REQUEST] Bad request (`not_ok_gauge` type mismatch)\n",
 			},
 		},
 	}

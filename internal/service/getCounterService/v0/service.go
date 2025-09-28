@@ -19,12 +19,12 @@ func (srv *Service) Do(
 ) (*int64, error) {
 	value, ok := srv.metricRepository.Get(metricName)
 	if !ok {
-		return nil, pkg.ErrNotFound
+		return nil, pkg.ErrNotFound.SetInfof("`%s` not found", metricName)
 	}
 
 	metricValue, ok := value.(int64)
 	if !ok {
-		return nil, pkg.ErrNotFound
+		return nil, pkg.ErrBadRequest.SetInfof("`%s` type mismatch", metricName)
 	}
 
 	return &metricValue, nil
