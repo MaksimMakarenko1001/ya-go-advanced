@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/pkg"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
 
 const html = `<html>

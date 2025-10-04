@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/agent"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/agent"
 )
 
 func main() {

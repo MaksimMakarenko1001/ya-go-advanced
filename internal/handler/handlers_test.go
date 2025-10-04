@@ -5,12 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/handler"
-	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/getCounterService/v0"
-	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/getGaugeService/v0"
-	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/listMetricService/v0"
-	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateCounterService/v0"
-	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/updateGaugeService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
+	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
+	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
+	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
+	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
+	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
 	"github.com/stretchr/testify/assert"
 )
 
