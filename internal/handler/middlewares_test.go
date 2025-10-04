@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/handler"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

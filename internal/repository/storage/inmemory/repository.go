@@ -1,7 +1,7 @@
 package inmemory
 
 import (
-	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced-sprint-1.git/internal/service/listMetricService/v0"
+	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 )
 
 type Repository struct {
