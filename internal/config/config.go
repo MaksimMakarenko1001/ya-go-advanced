@@ -1,21 +1,40 @@
 package config
 
-import "flag"
+import (
+	"flag"
+	"log"
 
-var httpCfg HTTPServerConfig
+	"github.com/caarlos0/env/v6"
+)
 
 type diConfig struct {
-	HTTP HTTPServerConfig `json:"http"`
+	HTTP HTTPServerConfig `envPrefix:"HTTP_"`
 }
 
-func (cfg *diConfig) loadConfig() {
-	flag.StringVar(&httpCfg.Address, "a", `:8080`, "server net address")
+func (cfg *diConfig) loadConfig(envPrefix string) {
+	cfg.loadFromArg()
+	cfg.loadFromEnv(envPrefix)
+}
+
+func (cfg *diConfig) loadFromArg() {
+	flag.StringVar(&cfg.HTTP.Address, "a", `:8080`, "server net address")
 
 	flag.Parse()
+}
 
-	cfg.HTTP = httpCfg
+func (cfg *diConfig) loadFromEnv(envPrefix string) {
+	var config diConfig
+
+	if err := env.Parse(&config, env.Options{Prefix: envPrefix, RequiredIfNoDef: true}); err != nil {
+		log.Printf("load from env not ok, %s\n", err.Error())
+		return
+	}
+
+	if address := config.HTTP.Address; address != "" {
+		cfg.HTTP.Address = address
+	}
 }
 
 type HTTPServerConfig struct {
-	Address string `json:"address"`
+	Address string `env:"ADDRESS"`
 }

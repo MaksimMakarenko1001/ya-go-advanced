@@ -31,16 +31,13 @@ type DI struct {
 	}
 }
 
-func (di *DI) Init() {
-	di.loadConfig()
+func (di *DI) Init(envPrefix string) {
+	di.config = &diConfig{}
+	di.config.loadConfig(envPrefix)
+
 	di.initRepositories()
 	di.initServices()
 	di.initAPI()
-}
-
-func (di *DI) loadConfig() {
-	di.config = &diConfig{}
-	di.config.loadConfig()
 }
 
 func (di *DI) initRepositories() {

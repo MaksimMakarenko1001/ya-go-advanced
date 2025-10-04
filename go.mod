@@ -3,6 +3,7 @@ module github.com/MaksimMakarenko1001/ya-go-advanced.git
 go 1.24.6
 
 require (
+	github.com/caarlos0/env/v6 v6.10.1
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/stretchr/testify v1.11.1
 )
