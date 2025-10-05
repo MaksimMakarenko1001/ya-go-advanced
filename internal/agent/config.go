@@ -3,6 +3,8 @@ package agent
 import (
 	"flag"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -17,6 +19,7 @@ type Config struct {
 func (cfg *Config) LoadConfig(envPrefix string) {
 	cfg.loadFromArg()
 	cfg.loadFromEnv(envPrefix)
+	cfg.loadFromEnvPassTests() // meets tests required
 }
 
 func (cfg *Config) loadFromArg() {
@@ -39,7 +42,7 @@ func (cfg *Config) loadFromEnv(envPrefix string) {
 	var config Config
 
 	if err := env.Parse(&config, env.Options{Prefix: envPrefix}); err != nil {
-		log.Printf("load from env not ok, %s\n", err.Error())
+		log.Printf("env not ok, %s\n", err.Error())
 		return
 	}
 
@@ -51,6 +54,24 @@ func (cfg *Config) loadFromEnv(envPrefix string) {
 	}
 	if report := config.ReportInterval; report.String() != "0s" {
 		cfg.ReportInterval = report
+	}
+}
+
+func (cfg *Config) loadFromEnvPassTests() {
+	if address := os.Getenv("ADDRESS"); address != "" {
+		cfg.HTTP.Address = address
+	}
+
+	if pool, err := strconv.Atoi(os.Getenv("POOL_INTERVAL")); err != nil {
+		log.Printf("POOL_INTERVAL env not ok, %s\n", err.Error())
+	} else {
+		cfg.PollInterval = time.Second * time.Duration(pool)
+	}
+
+	if report, err := strconv.Atoi(os.Getenv("REPORT_INTERVAL")); err != nil {
+		log.Printf("REPORT_INTERVAL env not ok, %s\n", err.Error())
+	} else {
+		cfg.ReportInterval = time.Second * time.Duration(report)
 	}
 }
 
