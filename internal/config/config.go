@@ -5,11 +5,13 @@ import (
 	"log"
 	"os"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/caarlos0/env/v6"
 )
 
 type diConfig struct {
-	HTTP HTTPServerConfig `envPrefix:"HTTP_"`
+	HTTP   HTTPServerConfig `envPrefix:"HTTP_"`
+	Logger logger.Config    `envPrefix:"LOGGER_"`
 }
 
 func (cfg *diConfig) loadConfig(envPrefix string) {

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/storage/inmemory"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
@@ -56,6 +57,7 @@ func (di *DI) initServices() {
 
 func (di *DI) initAPI() {
 	di.api.external = handler.New(
+		logger.New(di.config.Logger),
 		di.services.updateCounterService,
 		di.services.updateGaugeService,
 		di.services.getCounterService,

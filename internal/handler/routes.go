@@ -2,9 +2,11 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
@@ -21,6 +23,7 @@ type Route struct {
 
 type API struct {
 	router               *chi.Mux
+	logger               logger.HTTPLogger
 	updateCounterService *updateCounterService.Service
 	updateGaugeService   *updateGaugeService.Service
 
@@ -31,6 +34,7 @@ type API struct {
 }
 
 func New(
+	logger logger.HTTPLogger,
 	updateCounterService *updateCounterService.Service,
 	updateGaugeService *updateGaugeService.Service,
 	getCounterService *getCounterService.Service,
@@ -39,6 +43,7 @@ func New(
 ) *API {
 	return &API{
 		router:               chi.NewRouter(),
+		logger:               logger,
 		updateCounterService: updateCounterService,
 		updateGaugeService:   updateGaugeService,
 		getCounterService:    getCounterService,
@@ -53,7 +58,8 @@ func (api API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (api API) Route() {
 	api.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		DoListMetricResponse(api.listMetricService.Do).ServeHTTP(w, r)
+		handler := DoListMetricResponse(api.listMetricService.Do)
+		Conveyor(handler, api.WithLogging).ServeHTTP(w, r)
 	})
 
 	api.router.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +76,7 @@ func (api API) Route() {
 			http.Error(w, "invalid metric type", http.StatusBadRequest)
 			return
 		}
-		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
+		Conveyor(handler, api.WithLogging, MiddlewareMetricName).ServeHTTP(w, r)
 	})
 
 	api.router.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +93,28 @@ func (api API) Route() {
 			http.Error(w, "invalid metric type", http.StatusBadRequest)
 			return
 		}
-		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
+		Conveyor(handler, api.WithLogging, MiddlewareMetricName).ServeHTTP(w, r)
+	})
+}
+
+func (api API) WithLogging(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		httpInfo := logger.HTTPInfo{
+			URI:    r.RequestURI,
+			Method: r.Method,
+		}
+
+		rw := responseWriter{
+			ResponseWriter: w,
+			response:       &httpInfo.Response,
+		}
+		h.ServeHTTP(&rw, r)
+
+		httpInfo.Duration = time.Since(start)
+
+		api.logger.LogHTTP("http", httpInfo)
 	})
 }
 
