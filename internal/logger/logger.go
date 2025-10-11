@@ -4,24 +4,9 @@ import (
 	"time"
 )
 
-const (
-	Trace   LogLevel = "trace"
-	Debug   LogLevel = "debug"
-	Info    LogLevel = "info"
-	Warning LogLevel = "warning"
-	Error   LogLevel = "error"
-	Fatal   LogLevel = "fatal"
-)
-
 type HTTPLogger interface {
 	LogHTTP(message string, info HTTPInfo)
 }
-
-type Config struct {
-	Level LogLevel `env:"LEVEL" envDefault:"info"`
-}
-
-type LogLevel = string
 
 type HTTPInfo struct {
 	URI      string        `json:"uri"`
