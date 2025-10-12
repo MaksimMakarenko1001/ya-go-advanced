@@ -15,7 +15,7 @@ func testHandler(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 }
 
-func TestMiddlewareTypeContent(t *testing.T) {
+func TestMiddlewareTypeContentTextPlain(t *testing.T) {
 	type want struct {
 		code    int
 		message string
@@ -48,7 +48,7 @@ func TestMiddlewareTypeContent(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
 
-			middleware := handler.MiddlewareTypeContent(http.HandlerFunc(testHandler))
+			middleware := handler.MiddlewareTypeContentTextPlain(http.HandlerFunc(testHandler))
 			middleware.ServeHTTP(w, request)
 
 			res := w.Result()

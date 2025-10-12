@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
@@ -73,8 +75,9 @@ func (api API) Route() {
 		}
 
 		if handler == nil {
-			http.Error(w, "invalid metric type", http.StatusBadRequest)
-			return
+			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "invalid metric type", http.StatusBadRequest)
+			})
 		}
 		Conveyor(handler, api.WithLogging, MiddlewareMetricName).ServeHTTP(w, r)
 	})
@@ -90,10 +93,61 @@ func (api API) Route() {
 		}
 
 		if handler == nil {
-			http.Error(w, "invalid metric type", http.StatusBadRequest)
-			return
+			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "invalid metric type", http.StatusBadRequest)
+			})
 		}
 		Conveyor(handler, api.WithLogging, MiddlewareMetricName).ServeHTTP(w, r)
+	})
+
+	api.router.Post("/update", func(w http.ResponseWriter, r *http.Request) {
+		var handler http.Handler
+
+		var metric models.Metrics
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			})
+		}
+
+		switch metric.MType {
+		case pkg.MetricTypeCounter:
+			handler = DoUpdateCounterJSONResponse(api.updateCounterService.Do, metric)
+		case pkg.MetricTypeGauge:
+			handler = DoUpdateGaugeJSONResponse(api.updateGaugeService.Do, metric)
+		}
+
+		if handler == nil {
+			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "invalid metric type", http.StatusBadRequest)
+			})
+		}
+		Conveyor(handler, api.WithLogging, MiddlewareTypeContentApplicationJSON).ServeHTTP(w, r)
+	})
+
+	api.router.Post("/value", func(w http.ResponseWriter, r *http.Request) {
+		var handler http.Handler
+
+		var metric models.Metrics
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			})
+		}
+
+		switch metric.MType {
+		case pkg.MetricTypeCounter:
+			handler = DoGetCounterJSONResponse(api.getCounterService.Do, metric)
+		case pkg.MetricTypeGauge:
+			handler = DoGetGaugeJSONResponse(api.getGaugeService.Do, metric)
+		}
+
+		if handler == nil {
+			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "invalid metric type", http.StatusBadRequest)
+			})
+		}
+		Conveyor(handler, api.WithLogging, MiddlewareTypeContentApplicationJSON).ServeHTTP(w, r)
 	})
 }
 

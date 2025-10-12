@@ -7,7 +7,10 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
 
-const TypeContentTextPlain = "text/plain"
+const (
+	TypeContentTextPlain       = "text/plain"
+	TypeContentApplicationJSON = "application/json"
+)
 
 var allowMetricType = map[string]struct{}{
 	pkg.MetricTypeGauge:   {},
@@ -23,9 +26,20 @@ func Conveyor(h http.Handler, middlewares ...Middleware) http.Handler {
 	return h
 }
 
-func MiddlewareTypeContent(next http.Handler) http.Handler {
+func MiddlewareTypeContentTextPlain(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, rq *http.Request) {
 		if rq.Header.Get("Content-Type") != TypeContentTextPlain {
+			http.Error(w, "not supported Content-Type", http.StatusNotFound)
+			return
+		}
+
+		next.ServeHTTP(w, rq)
+	})
+}
+
+func MiddlewareTypeContentApplicationJSON(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, rq *http.Request) {
+		if rq.Header.Get("Content-Type") != TypeContentApplicationJSON {
 			http.Error(w, "not supported Content-Type", http.StatusNotFound)
 			return
 		}
