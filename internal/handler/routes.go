@@ -122,7 +122,7 @@ func (api API) Route() {
 				http.Error(w, "invalid metric type", http.StatusBadRequest)
 			})
 		}
-		Conveyor(handler, api.WithLogging, MiddlewareTypeContentApplicationJSON).ServeHTTP(w, r)
+		Conveyor(handler, api.WithLogging).ServeHTTP(w, r)
 	})
 
 	api.router.Post("/value/", func(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +147,7 @@ func (api API) Route() {
 				http.Error(w, "invalid metric type", http.StatusBadRequest)
 			})
 		}
-		Conveyor(handler, api.WithLogging, MiddlewareTypeContentApplicationJSON).ServeHTTP(w, r)
+		Conveyor(handler, api.WithLogging).ServeHTTP(w, r)
 	})
 }
 
