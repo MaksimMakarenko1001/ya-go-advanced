@@ -58,7 +58,7 @@ func (c *Client) sendGaugeMetricJSON(metricName string, value float64) (err erro
 	u := url.URL{
 		Scheme: "http",
 		Host:   c.host,
-		Path:   "/update",
+		Path:   "/update/",
 	}
 
 	var buf bytes.Buffer
@@ -110,7 +110,7 @@ func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err erro
 	u := url.URL{
 		Scheme: "http",
 		Host:   c.host,
-		Path:   "/update",
+		Path:   "/update/",
 	}
 
 	var buf bytes.Buffer

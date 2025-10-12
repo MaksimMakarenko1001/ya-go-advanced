@@ -100,7 +100,7 @@ func (api API) Route() {
 		Conveyor(handler, api.WithLogging, MiddlewareMetricName).ServeHTTP(w, r)
 	})
 
-	api.router.Post("/update", func(w http.ResponseWriter, r *http.Request) {
+	api.router.Post("/update/", func(w http.ResponseWriter, r *http.Request) {
 		var handler http.Handler
 
 		var metric models.Metrics
@@ -125,7 +125,7 @@ func (api API) Route() {
 		Conveyor(handler, api.WithLogging, MiddlewareTypeContentApplicationJSON).ServeHTTP(w, r)
 	})
 
-	api.router.Post("/value", func(w http.ResponseWriter, r *http.Request) {
+	api.router.Post("/value/", func(w http.ResponseWriter, r *http.Request) {
 		var handler http.Handler
 
 		var metric models.Metrics
