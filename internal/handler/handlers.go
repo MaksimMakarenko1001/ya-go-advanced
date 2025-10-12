@@ -86,7 +86,8 @@ func DoUpdateGaugeJSONResponse(srv UpdateGaugeService, rq models.Metrics) http.H
 			return
 		}
 
-		WriteOK(w)
+		resp, _ := json.Marshal(rq)
+		WriteJSONResult(w, resp)
 	}
 }
 
@@ -160,7 +161,8 @@ func DoUpdateCounterJSONResponse(srv UpdateCounterService, rq models.Metrics) ht
 			return
 		}
 
-		WriteOK(w)
+		resp, _ := json.Marshal(rq)
+		WriteJSONResult(w, resp)
 	}
 }
 
