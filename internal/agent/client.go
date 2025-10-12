@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -9,6 +11,8 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 )
 
 type Client struct {
@@ -50,6 +54,34 @@ func (c *Client) sendGaugeMetric(metricName string, value float64) (err error) {
 	return nil
 }
 
+func (c *Client) sendGaugeMetricJSON(metricName string, value float64) (err error) {
+	u := url.URL{
+		Scheme: "http",
+		Host:   c.host,
+		Path:   "/update",
+	}
+
+	var buf bytes.Buffer
+	json.NewEncoder(&buf).Encode(models.Metrics{
+		ID:    metricName,
+		MType: "gauge",
+		Value: &value,
+	})
+
+	resp, err := http.Post(u.String(), "application/json", &buf)
+	if err != nil {
+		return fmt.Errorf("error sending gauge metric: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to send gauge metric %s: %d", metricName, resp.StatusCode)
+	}
+
+	return nil
+}
+
 func (c *Client) sendCounterMetric(metricName string, value int64) (err error) {
 	valueStr := strconv.FormatInt(value, 10)
 
@@ -60,6 +92,35 @@ func (c *Client) sendCounterMetric(metricName string, value int64) (err error) {
 	}
 
 	resp, err := http.Post(u.String(), "text/plain", nil)
+	if err != nil {
+		return fmt.Errorf("error sending counter metric: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to send counter metric %s: %d", metricName, resp.StatusCode)
+	}
+
+	return nil
+}
+
+func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err error) {
+
+	u := url.URL{
+		Scheme: "http",
+		Host:   c.host,
+		Path:   "/update",
+	}
+
+	var buf bytes.Buffer
+	json.NewEncoder(&buf).Encode(models.Metrics{
+		ID:    metricName,
+		MType: "counter",
+		Delta: &value,
+	})
+
+	resp, err := http.Post(u.String(), "application/json", &buf)
 	if err != nil {
 		return fmt.Errorf("error sending counter metric: %w", err)
 	}
@@ -136,13 +197,13 @@ func (c *Client) Srart(pollInterval time.Duration, reportInterval time.Duration)
 			log.Printf("Reporting metrics")
 			// TODO implement fan-out technique
 			for name, value := range gaugeMetrics {
-				err = c.sendGaugeMetric(name, value)
+				err = c.sendGaugeMetricJSON(name, value)
 				if err != nil {
 					return err
 				}
 			}
 			for name, value := range counterMetrics {
-				err = c.sendCounterMetric(name, value)
+				err = c.sendCounterMetricJSON(name, value)
 				if err != nil {
 					return err
 				}
