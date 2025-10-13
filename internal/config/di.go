@@ -64,11 +64,12 @@ func (di *DI) initAPI() {
 		di.services.getGaugeService,
 		di.services.listMetricService,
 	)
+
 }
 
 func (di *DI) Start() error {
 	config := di.config.HTTP
 
 	di.api.external.Route()
-	return http.ListenAndServe(config.Address, di.api.external)
+	return http.ListenAndServe(config.Address, handler.Conveyor(di.api.external, di.api.external.WithLogging))
 }

@@ -61,7 +61,7 @@ func (api API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (api API) Route() {
 	api.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		handler := DoListMetricResponse(api.listMetricService.Do)
-		Conveyor(handler, api.WithLogging).ServeHTTP(w, r)
+		handler.ServeHTTP(w, r)
 	})
 
 	api.router.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +79,7 @@ func (api API) Route() {
 				http.Error(w, "invalid metric type", http.StatusBadRequest)
 			})
 		}
-		Conveyor(handler, api.WithLogging, MiddlewareMetricName).ServeHTTP(w, r)
+		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
 	})
 
 	api.router.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +97,7 @@ func (api API) Route() {
 				http.Error(w, "invalid metric type", http.StatusBadRequest)
 			})
 		}
-		Conveyor(handler, api.WithLogging, MiddlewareMetricName).ServeHTTP(w, r)
+		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
 	})
 
 	api.router.Post("/update/", func(w http.ResponseWriter, r *http.Request) {
@@ -122,7 +122,7 @@ func (api API) Route() {
 				http.Error(w, "invalid metric type", http.StatusBadRequest)
 			})
 		}
-		Conveyor(handler, api.WithLogging).ServeHTTP(w, r)
+		handler.ServeHTTP(w, r)
 	})
 
 	api.router.Post("/value/", func(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +147,7 @@ func (api API) Route() {
 				http.Error(w, "invalid metric type", http.StatusBadRequest)
 			})
 		}
-		Conveyor(handler, api.WithLogging).ServeHTTP(w, r)
+		handler.ServeHTTP(w, r)
 	})
 }
 
