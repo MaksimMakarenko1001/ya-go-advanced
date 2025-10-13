@@ -24,5 +24,5 @@ func run() error {
 
 	log.Printf("agent starts on %s\n", cfg.HTTP.Address)
 
-	return cli.Srart(cfg.PollInterval, cfg.ReportInterval)
+	return cli.Start(cfg.PollInterval, cfg.ReportInterval)
 }

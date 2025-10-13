@@ -176,7 +176,7 @@ func (c *Client) collectGaugeMetrics() map[string]float64 {
 
 }
 
-func (c *Client) Srart(pollInterval time.Duration, reportInterval time.Duration) error {
+func (c *Client) Start(pollInterval time.Duration, reportInterval time.Duration) error {
 	ticker := time.NewTicker(pollInterval)
 	reportTicker := time.NewTicker(reportInterval)
 	defer ticker.Stop()
@@ -189,23 +189,23 @@ func (c *Client) Srart(pollInterval time.Duration, reportInterval time.Duration)
 	for {
 		select {
 		case <-ticker.C:
-			log.Printf("Collecting metrics")
+			log.Println("Collecting metrics")
 			gaugeMetrics = c.collectGaugeMetrics()
 			counterMetrics = c.collectCounterMetrics()
 
 		case <-reportTicker.C:
-			log.Printf("Reporting metrics")
+			log.Println("Reporting metrics")
 			// TODO implement fan-out technique
 			for name, value := range gaugeMetrics {
 				err = c.sendGaugeMetricJSON(name, value)
 				if err != nil {
-					return err
+					log.Println(err.Error())
 				}
 			}
 			for name, value := range counterMetrics {
 				err = c.sendCounterMetricJSON(name, value)
 				if err != nil {
-					return err
+					log.Println(err.Error())
 				}
 			}
 		}
