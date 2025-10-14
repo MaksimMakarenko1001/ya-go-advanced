@@ -1,11 +1,12 @@
 package logger
 
 import (
+	"bytes"
 	"time"
 )
 
 type HTTPLogger interface {
-	LogHTTP(message string, info HTTPInfo)
+	LogHTTP(info HTTPInfo)
 }
 
 type HTTPInfo struct {
@@ -16,6 +17,7 @@ type HTTPInfo struct {
 }
 
 type ResponseInfo struct {
-	Size   int `json:"size"`
-	Status int `json:"status"`
+	Size   int          `json:"size"`
+	Status int          `json:"status"`
+	Body   bytes.Buffer `json:"-"`
 }

@@ -71,5 +71,9 @@ func (di *DI) Start() error {
 	config := di.config.HTTP
 
 	di.api.external.Route()
-	return http.ListenAndServe(config.Address, handler.Conveyor(di.api.external, di.api.external.WithLogging))
+	return http.ListenAndServe(config.Address, handler.Conveyor(
+		di.api.external,
+		handler.MiddlewareCompress,
+		di.api.external.WithLogging,
+	))
 }

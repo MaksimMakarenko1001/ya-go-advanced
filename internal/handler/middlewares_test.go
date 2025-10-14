@@ -1,6 +1,8 @@
 package handler_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,8 +13,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testHandler(rw http.ResponseWriter, r *http.Request) {
-	rw.WriteHeader(http.StatusOK)
+const testMessage = `Got you`
+
+func testHandler() http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte(testMessage))
+	})
+
 }
 
 func TestMiddlewareTypeContentTextPlain(t *testing.T) {
@@ -30,7 +38,7 @@ func TestMiddlewareTypeContentTextPlain(t *testing.T) {
 			contentType: "text/plain",
 			want: want{
 				code:    200,
-				message: "",
+				message: testMessage,
 			},
 		},
 		{
@@ -48,7 +56,7 @@ func TestMiddlewareTypeContentTextPlain(t *testing.T) {
 			request.Header.Set("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
 
-			middleware := handler.MiddlewareTypeContentTextPlain(http.HandlerFunc(testHandler))
+			middleware := handler.MiddlewareTypeContentTextPlain(testHandler())
 			middleware.ServeHTTP(w, request)
 
 			res := w.Result()
@@ -78,7 +86,7 @@ func TestMiddlewareURLPath(t *testing.T) {
 			URL:  "/a/b/c/d",
 			want: want{
 				code:    200,
-				message: "",
+				message: testMessage,
 			},
 		},
 		{
@@ -103,7 +111,7 @@ func TestMiddlewareURLPath(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.URL, nil)
 			w := httptest.NewRecorder()
 
-			middleware := handler.MiddlewareURLPath(http.HandlerFunc(testHandler))
+			middleware := handler.MiddlewareURLPath(testHandler())
 			middleware.ServeHTTP(w, request)
 
 			res := w.Result()
@@ -133,7 +141,7 @@ func TestMiddlewareMetricType(t *testing.T) {
 			metricType: "gauge",
 			want: want{
 				code:    200,
-				message: "",
+				message: testMessage,
 			},
 		},
 		{
@@ -141,7 +149,7 @@ func TestMiddlewareMetricType(t *testing.T) {
 			metricType: "counter",
 			want: want{
 				code:    200,
-				message: "",
+				message: testMessage,
 			},
 		},
 		{
@@ -158,7 +166,7 @@ func TestMiddlewareMetricType(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/foo/"+tt.metricType, nil)
 			w := httptest.NewRecorder()
 
-			middleware := handler.MiddlewareMetricType(http.HandlerFunc(testHandler))
+			middleware := handler.MiddlewareMetricType(testHandler())
 			middleware.ServeHTTP(w, request)
 
 			res := w.Result()
@@ -188,7 +196,7 @@ func TestMiddlewareMetricName(t *testing.T) {
 			metricName: "foo",
 			want: want{
 				code:    200,
-				message: "",
+				message: testMessage,
 			},
 		},
 		{
@@ -205,7 +213,7 @@ func TestMiddlewareMetricName(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/foo/bar/"+tt.metricName, nil)
 			w := httptest.NewRecorder()
 
-			middleware := handler.MiddlewareMetricName(http.HandlerFunc(testHandler))
+			middleware := handler.MiddlewareMetricName(testHandler())
 			middleware.ServeHTTP(w, request)
 
 			res := w.Result()
@@ -218,4 +226,59 @@ func TestMiddlewareMetricName(t *testing.T) {
 			assert.Equal(t, tt.want.message, string(resBody))
 		})
 	}
+}
+
+func TestMiddlewareCompress(t *testing.T) {
+	middleware := handler.MiddlewareCompress(testHandler())
+
+	request := `What's up?!`
+
+	t.Run("sends gzip", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		zw := gzip.NewWriter(buf)
+
+		_, err := zw.Write([]byte(request))
+		require.NoError(t, err)
+
+		err = zw.Close()
+		require.NoError(t, err)
+
+		r := httptest.NewRequest(http.MethodPost, "/", buf)
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Del("Accept-Encoding")
+		w := httptest.NewRecorder()
+
+		middleware.ServeHTTP(w, r)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Equal(t, testMessage, string(body))
+	})
+
+	t.Run("accept_gzip", func(t *testing.T) {
+		buf := bytes.NewBufferString(request)
+		r := httptest.NewRequest(http.MethodPost, "/", buf)
+		r.Header.Set("Accept-Encoding", "gzip")
+		r.Header.Del("Content-Encoding")
+		w := httptest.NewRecorder()
+
+		middleware.ServeHTTP(w, r)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		defer resp.Body.Close()
+
+		zr, err := gzip.NewReader(resp.Body)
+		require.NoError(t, err)
+
+		body, err := io.ReadAll(zr)
+		require.NoError(t, err)
+		assert.Equal(t, testMessage, string(body))
+	})
 }

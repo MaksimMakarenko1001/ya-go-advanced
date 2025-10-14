@@ -102,8 +102,8 @@ func (api API) Route() {
 
 	api.router.Post("/update/", func(w http.ResponseWriter, r *http.Request) {
 		var handler http.Handler
-
 		var metric models.Metrics
+
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -127,8 +127,8 @@ func (api API) Route() {
 
 	api.router.Post("/value/", func(w http.ResponseWriter, r *http.Request) {
 		var handler http.Handler
-
 		var metric models.Metrics
+
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -168,7 +168,7 @@ func (api API) WithLogging(h http.Handler) http.Handler {
 
 		httpInfo.Duration = time.Since(start)
 
-		api.logger.LogHTTP("http", httpInfo)
+		api.logger.LogHTTP(httpInfo)
 	})
 }
 

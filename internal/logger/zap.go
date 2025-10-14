@@ -25,7 +25,7 @@ func New(config Config) *ZapLogger {
 	return &ZapLogger{logger: zl}
 }
 
-func (zl *ZapLogger) LogHTTP(message string, info HTTPInfo) {
+func (zl *ZapLogger) LogHTTP(info HTTPInfo) {
 	defer zl.logger.Sync()
 
 	b, err := json.Marshal(info)
@@ -33,5 +33,6 @@ func (zl *ZapLogger) LogHTTP(message string, info HTTPInfo) {
 		zl.logger.Error("log not ok, %w", zap.Error(err))
 	}
 
-	zl.logger.Info(message, zap.ByteString("info", b))
+	zl.logger.Debug("", zap.String("body", info.Response.Body.String()))
+	zl.logger.Info("", zap.ByteString("info", b))
 }
