@@ -264,6 +264,7 @@ func TestMiddlewareCompress(t *testing.T) {
 		buf := bytes.NewBufferString(request)
 		r := httptest.NewRequest(http.MethodPost, "/", buf)
 		r.Header.Set("Accept-Encoding", "gzip")
+		r.Header.Set("Content-Type", "application/json")
 		r.Header.Del("Content-Encoding")
 		w := httptest.NewRecorder()
 
