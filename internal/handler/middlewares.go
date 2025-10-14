@@ -85,15 +85,10 @@ func MiddlewareMetricName(next http.Handler) http.Handler {
 }
 
 func MiddlewareCompress(next http.Handler) http.Handler {
-	compressedTypes := []string{"application/json", "text/html"}
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		w := rw
 
-		supportsGzip := slices.Contains(r.Header.Values("Accept-Encoding"), "gzip") && slices.ContainsFunc(
-			r.Header.Values("Content-Type"),
-			func(cType string) bool { return slices.Contains(compressedTypes, cType) },
-		)
-
+		supportsGzip := slices.Contains(r.Header.Values("Accept-Encoding"), "gzip")
 		if supportsGzip {
 			cw := &compressWriter{
 				w:  rw,

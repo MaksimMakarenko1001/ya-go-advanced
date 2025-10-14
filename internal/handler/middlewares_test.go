@@ -264,7 +264,6 @@ func TestMiddlewareCompress(t *testing.T) {
 		buf := bytes.NewBufferString(request)
 		r := httptest.NewRequest(http.MethodPost, "/", buf)
 		r.Header.Set("Accept-Encoding", "gzip")
-		r.Header.Set("Content-Type", "application/json")
 		r.Header.Del("Content-Encoding")
 		w := httptest.NewRecorder()
 
@@ -272,6 +271,8 @@ func TestMiddlewareCompress(t *testing.T) {
 
 		resp := w.Result()
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		assert.Equal(t, "gzip", resp.Header.Get("Content-Encoding"))
 
 		defer resp.Body.Close()
 
