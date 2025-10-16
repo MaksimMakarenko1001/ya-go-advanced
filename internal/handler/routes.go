@@ -9,6 +9,7 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
+	dumbMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumbMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
@@ -33,6 +34,8 @@ type API struct {
 	getGaugeService   *getGaugeService.Service
 
 	listMetricService *listMetricService.Service
+
+	dumbMetricService *dumbMetricService.Service
 }
 
 func New(
@@ -42,6 +45,7 @@ func New(
 	getCounterService *getCounterService.Service,
 	getGaugeService *getGaugeService.Service,
 	listMetricService *listMetricService.Service,
+	dumbMetricService *dumbMetricService.Service,
 ) *API {
 	return &API{
 		router:               chi.NewRouter(),
@@ -51,6 +55,7 @@ func New(
 		getCounterService:    getCounterService,
 		getGaugeService:      getGaugeService,
 		listMetricService:    listMetricService,
+		dumbMetricService:    dumbMetricService,
 	}
 }
 
@@ -58,7 +63,7 @@ func (api API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	api.router.ServeHTTP(w, r)
 }
 
-func (api API) Route() {
+func (api API) Route(withSync bool) {
 	api.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		handler := DoListMetricResponse(api.listMetricService.Do)
 		handler.ServeHTTP(w, r)
@@ -122,6 +127,10 @@ func (api API) Route() {
 				http.Error(w, "invalid metric type", http.StatusBadRequest)
 			})
 		}
+
+		if withSync {
+			handler = api.WithSync(handler)
+		}
 		handler.ServeHTTP(w, r)
 	})
 
@@ -169,6 +178,16 @@ func (api API) WithLogging(h http.Handler) http.Handler {
 		httpInfo.Duration = time.Since(start)
 
 		api.logger.LogHTTP(httpInfo)
+	})
+}
+
+func (api API) WithSync(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r)
+
+		if err := api.dumbMetricService.WriteDumb(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	})
 }
 
