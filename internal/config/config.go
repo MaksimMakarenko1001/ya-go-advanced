@@ -48,6 +48,8 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 		return
 	}
 
+	cfg.Logger = config.Logger
+
 	if address := config.HTTP.Address; address != "" {
 		cfg.HTTP.Address = address
 	}
