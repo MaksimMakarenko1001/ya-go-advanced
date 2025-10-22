@@ -9,7 +9,7 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
-	dumbMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumbMetricService/v0"
+	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
@@ -35,7 +35,7 @@ type API struct {
 
 	listMetricService *listMetricService.Service
 
-	dumbMetricService *dumbMetricService.Service
+	dumpMetricService *dumpMetricService.Service
 }
 
 func New(
@@ -45,7 +45,7 @@ func New(
 	getCounterService *getCounterService.Service,
 	getGaugeService *getGaugeService.Service,
 	listMetricService *listMetricService.Service,
-	dumbMetricService *dumbMetricService.Service,
+	dumpMetricService *dumpMetricService.Service,
 ) *API {
 	return &API{
 		router:               chi.NewRouter(),
@@ -55,7 +55,7 @@ func New(
 		getCounterService:    getCounterService,
 		getGaugeService:      getGaugeService,
 		listMetricService:    listMetricService,
-		dumbMetricService:    dumbMetricService,
+		dumpMetricService:    dumpMetricService,
 	}
 }
 
@@ -185,7 +185,7 @@ func (api API) WithSync(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 
-		if err := api.dumbMetricService.WriteDumb(); err != nil {
+		if err := api.dumpMetricService.WriteDump(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})

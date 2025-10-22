@@ -19,7 +19,7 @@ func New(fname string, metricRepo MetricRepository) *Service {
 	}
 }
 
-func (srv *Service) ReadDumb() error {
+func (srv *Service) ReadDump() error {
 	file, err := os.ReadFile(srv.fname)
 	if err != nil {
 		return fmt.Errorf("reading file not ok, %w", err)
@@ -32,13 +32,13 @@ func (srv *Service) ReadDumb() error {
 	return nil
 }
 
-func (srv *Service) WriteDumb() error {
+func (srv *Service) WriteDump() error {
 	srv.mtx.Lock()
 	defer srv.mtx.Unlock()
 
 	data, err := srv.metricRepository.Save()
 	if err != nil {
-		return fmt.Errorf("dumb repo not ok, %w", err)
+		return fmt.Errorf("dump repo not ok, %w", err)
 	}
 
 	if err := os.WriteFile(srv.fname, data, 0666); err != nil {
