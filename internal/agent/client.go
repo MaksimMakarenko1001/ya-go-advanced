@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
 
 type Client struct {
@@ -65,7 +66,7 @@ func (c *Client) sendGaugeMetricJSON(metricName string, value float64) (err erro
 	var buf bytes.Buffer
 	err = json.NewEncoder(&buf).Encode(models.Metrics{
 		ID:    metricName,
-		MType: "gauge",
+		MType: pkg.MetricTypeGauge,
 		Value: &value,
 	})
 	if err != nil {
@@ -76,19 +77,14 @@ func (c *Client) sendGaugeMetricJSON(metricName string, value float64) (err erro
 	if err != nil {
 		return fmt.Errorf("gauge request not ok, %w", err)
 	}
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Encoding", "gzip")
-	r.Header.Set("Accept-Encoding", "gzip")
 
-	resp, err := c.httpClient.Do(r)
+	status, err := c.send(r)
 	if err != nil {
 		return fmt.Errorf("gauge http not ok, %w", err)
 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("gauge response status not ok, %s: %d", metricName, resp.StatusCode)
+	if status != http.StatusOK {
+		return fmt.Errorf("gauge response status not ok, %s: %d", metricName, status)
 	}
 
 	return nil
@@ -128,7 +124,7 @@ func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err erro
 	var buf bytes.Buffer
 	err = json.NewEncoder(&buf).Encode(models.Metrics{
 		ID:    metricName,
-		MType: "counter",
+		MType: pkg.MetricTypeCounter,
 		Delta: &value,
 	})
 
@@ -140,19 +136,14 @@ func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err erro
 	if err != nil {
 		return fmt.Errorf("counter request not ok, %w", err)
 	}
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Content-Encoding", "gzip")
-	r.Header.Set("Accept-Encoding", "gzip")
 
-	resp, err := c.httpClient.Do(r)
+	status, err := c.send(r)
 	if err != nil {
 		return fmt.Errorf("counter http not ok, %w", err)
 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("counter response status not ok, %s: %d", metricName, resp.StatusCode)
+	if status != http.StatusOK {
+		return fmt.Errorf("counter response status not ok, %s: %d", metricName, status)
 	}
 
 	return nil
@@ -235,6 +226,21 @@ func (c *Client) Start(pollInterval time.Duration, reportInterval time.Duration)
 		}
 	}
 
+}
+
+func (c *Client) send(r *http.Request) (int, error) {
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Encoding", "gzip")
+	r.Header.Set("Accept-Encoding", "gzip")
+
+	resp, err := c.httpClient.Do(r)
+	if err != nil {
+		return 0, err
+	}
+
+	defer resp.Body.Close()
+
+	return resp.StatusCode, nil
 }
 
 func newGZipRequest(method string, url string, body []byte) (*http.Request, error) {
