@@ -14,7 +14,7 @@ import (
 type diConfig struct {
 	HTTP            HTTPServerConfig `envPrefix:"HTTP_"`
 	Logger          logger.Config    `envPrefix:"LOGGER_"`
-	StoreInterval   time.Duration    `env:"STORE_INTERVAL"`
+	StoreInterval   time.Duration    `env:"STORE_INTERVAL" envDefault:"3s"`
 	FileStoragePath string           `env:"FILE_STORAGE_PATH"`
 	Restore         bool             `env:"RESTORE"`
 }

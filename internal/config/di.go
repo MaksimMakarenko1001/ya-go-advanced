@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
@@ -88,10 +89,15 @@ func (di *DI) Start() error {
 	withDump := di.config.StoreInterval == 0
 	di.api.external.Route(withDump)
 
+	var wg sync.WaitGroup
 	errCh := make(chan error)
 
 	if di.config.StoreInterval > 0 {
+		wg.Add(1)
+
 		go func() {
+			defer wg.Done()
+
 			ticker := time.NewTicker(di.config.StoreInterval)
 			defer ticker.Stop()
 
@@ -115,6 +121,7 @@ func (di *DI) Start() error {
 	))
 
 	errCh <- err
+	wg.Wait()
 
 	return err
 }
