@@ -49,6 +49,6 @@ func (zl *ZapLogger) LogHTTP(info HTTPInfo) {
 
 	msg := fmt.Sprint(info.Method, info.URI)
 
-	zl.logger.Info(msg, zap.String(infoLabel, info.Response.Body.String()))
+	zl.logger.Info(msg, zap.ByteString(infoLabel, info.Response.Body.Bytes()))
 	zl.logger.Debug(msg, zap.ByteString("raw", b))
 }
