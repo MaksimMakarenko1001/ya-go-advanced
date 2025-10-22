@@ -97,6 +97,9 @@ func (r *Repository) Load(b []byte) error {
 
 	collection := make(map[string]*Item, len(data))
 	for _, item := range data {
+		if err := item.validate(); err != nil {
+			return err
+		}
 		collection[item.Name] = &item
 	}
 

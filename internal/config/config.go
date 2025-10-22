@@ -14,7 +14,7 @@ import (
 type diConfig struct {
 	HTTP            HTTPServerConfig `envPrefix:"HTTP_"`
 	Logger          logger.Config    `envPrefix:"LOGGER_"`
-	StoreInterval   time.Duration    `env:"STORE_INTERVAL" envDefault:"3s"`
+	StoreInterval   time.Duration    `env:"STORE_INTERVAL"`
 	FileStoragePath string           `env:"FILE_STORAGE_PATH"`
 	Restore         bool             `env:"RESTORE"`
 }
@@ -33,7 +33,7 @@ func (cfg *diConfig) loadFromArg() {
 	flag.StringVar(&cfg.HTTP.Address, "a", `:8080`, "server net address")
 	flag.IntVar(&options.store, "i", 0, "store interval in seconds")
 	flag.StringVar(&cfg.FileStoragePath, "f", "dump.txt", "dump file path")
-	flag.BoolVar(&cfg.Restore, "r", true, "restore dump file on start")
+	flag.BoolVar(&cfg.Restore, "r", false, "restore dump file on start")
 
 	flag.Parse()
 

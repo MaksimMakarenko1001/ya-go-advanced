@@ -83,7 +83,9 @@ func (di *DI) Start() error {
 	config := di.config.HTTP
 
 	if di.config.Restore {
-		di.services.dumpMetricService.ReadDump()
+		if err := di.services.dumpMetricService.ReadDump(); err != nil {
+			log.Println(err.Error())
+		}
 	}
 
 	withDump := di.config.StoreInterval == 0
