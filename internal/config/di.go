@@ -9,7 +9,7 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/encode"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/storage/inmemory"
-	dumbMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumbMetricService/v0"
+	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
@@ -32,7 +32,7 @@ type DI struct {
 
 		listMetricService *listMetricService.Service
 
-		dumbMetricService *dumbMetricService.Service
+		dumpMetricService *dumpMetricService.Service
 	}
 	api struct {
 		external *handler.API
@@ -62,7 +62,7 @@ func (di *DI) initServices() {
 
 	di.services.listMetricService = listMetricService.New(di.repositories.metricStorage)
 
-	di.services.dumbMetricService = dumbMetricService.New(di.config.FileStoragePath, di.repositories.metricStorage)
+	di.services.dumpMetricService = dumpMetricService.New(di.config.FileStoragePath, di.repositories.metricStorage)
 }
 
 func (di *DI) initAPI() {
@@ -73,7 +73,7 @@ func (di *DI) initAPI() {
 		di.services.getCounterService,
 		di.services.getGaugeService,
 		di.services.listMetricService,
-		di.services.dumbMetricService,
+		di.services.dumpMetricService,
 	)
 
 }
@@ -82,11 +82,11 @@ func (di *DI) Start() error {
 	config := di.config.HTTP
 
 	if di.config.Restore {
-		di.services.dumbMetricService.ReadDumb()
+		di.services.dumpMetricService.ReadDump()
 	}
 
-	withDumb := di.config.StoreInterval == 0
-	di.api.external.Route(withDumb)
+	withDump := di.config.StoreInterval == 0
+	di.api.external.Route(withDump)
 
 	errCh := make(chan error)
 
@@ -100,7 +100,7 @@ func (di *DI) Start() error {
 				case <-errCh:
 					return
 				case <-ticker.C:
-					if err := di.services.dumbMetricService.WriteDumb(); err != nil {
+					if err := di.services.dumpMetricService.WriteDump(); err != nil {
 						log.Println(err.Error())
 					}
 				}

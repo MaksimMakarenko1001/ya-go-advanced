@@ -32,8 +32,8 @@ func (cfg *diConfig) loadFromArg() {
 
 	flag.StringVar(&cfg.HTTP.Address, "a", `:8080`, "server net address")
 	flag.IntVar(&options.store, "i", 0, "store interval in seconds")
-	flag.StringVar(&cfg.FileStoragePath, "f", "dumb.txt", "dumb file path")
-	flag.BoolVar(&cfg.Restore, "r", true, "restore dumb file on start")
+	flag.StringVar(&cfg.FileStoragePath, "f", "dump.txt", "dump file path")
+	flag.BoolVar(&cfg.Restore, "r", true, "restore dump file on start")
 
 	flag.Parse()
 
