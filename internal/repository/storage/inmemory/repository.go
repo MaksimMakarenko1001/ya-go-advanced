@@ -1,19 +1,23 @@
 package inmemory
 
 import (
-	"bytes"
-	"encoding/json"
-
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 )
 
-type Repository struct {
-	collection map[string]*Item
+type Encoder interface {
+	Encode(v any) ([]byte, error)
+	Decode(data []byte, v any) error
 }
 
-func New() *Repository {
+type Repository struct {
+	collection map[string]*Item
+	encoder    Encoder
+}
+
+func New(encoder Encoder) *Repository {
 	return &Repository{
 		collection: make(map[string]*Item),
+		encoder:    encoder,
 	}
 }
 
@@ -86,7 +90,7 @@ func (r *Repository) List() []listMetricService.MetricItem {
 func (r *Repository) Load(b []byte) error {
 	var data []Item
 
-	err := json.NewDecoder(bytes.NewBuffer(b)).Decode(&data)
+	err := r.encoder.Decode(b, &data)
 	if err != nil {
 		return err
 	}
@@ -107,12 +111,5 @@ func (r *Repository) Save() ([]byte, error) {
 		data = append(data, *item)
 	}
 
-	buf := bytes.NewBuffer(nil)
-
-	err := json.NewEncoder(buf).Encode(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
+	return r.encoder.Encode(data)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/encode"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/storage/inmemory"
 	dumbMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumbMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
@@ -20,6 +21,7 @@ type DI struct {
 	config       *diConfig
 	repositories struct {
 		metricStorage *inmemory.Repository
+		encoder       *encode.JSONEncode
 	}
 	services struct {
 		updateCounterService *updateCounterService.Service
@@ -47,7 +49,8 @@ func (di *DI) Init(envPrefix string) {
 }
 
 func (di *DI) initRepositories() {
-	di.repositories.metricStorage = inmemory.New()
+	di.repositories.encoder = encode.New()
+	di.repositories.metricStorage = inmemory.New(di.repositories.encoder)
 }
 
 func (di *DI) initServices() {
@@ -107,8 +110,8 @@ func (di *DI) Start() error {
 
 	err := http.ListenAndServe(config.Address, handler.Conveyor(
 		di.api.external,
-		handler.MiddlewareCompress,
 		di.api.external.WithLogging,
+		handler.MiddlewareCompress,
 	))
 
 	errCh <- err
