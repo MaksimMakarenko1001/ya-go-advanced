@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
 
@@ -72,6 +74,23 @@ func DoUpdateGaugeResponse(srv UpdateGaugeService) http.HandlerFunc {
 	}
 }
 
+func DoUpdateGaugeJSONResponse(srv UpdateGaugeService, rq models.Metrics) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if rq.Value == nil {
+			http.Error(w, "invalid metric value", http.StatusBadRequest)
+			return
+		}
+
+		if err := srv(rq.ID, *rq.Value); err != nil {
+			WriteError(w, err)
+			return
+		}
+
+		resp, _ := json.Marshal(rq)
+		WriteJSONResult(w, resp)
+	}
+}
+
 func DoGetGaugeResponse(srv GetGaugeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
@@ -85,6 +104,27 @@ func DoGetGaugeResponse(srv GetGaugeService) http.HandlerFunc {
 		}
 
 		WriteResult(w, strconv.FormatFloat(*value, 'f', -1, 64))
+	}
+}
+
+func DoGetGaugeJSONResponse(srv GetGaugeService, rq models.Metrics) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		value, err := srv(rq.ID)
+		if err != nil {
+			WriteError(w, err)
+			return
+		}
+
+		resp, err := json.Marshal(models.Metrics{
+			ID:    rq.ID,
+			MType: rq.MType,
+			Value: value,
+		})
+		if err != nil {
+			WriteError(w, fmt.Errorf("convert to gauge response not ok, %w", err))
+		}
+
+		WriteJSONResult(w, resp)
 	}
 }
 
@@ -109,6 +149,23 @@ func DoUpdateCounterResponse(srv UpdateCounterService) http.HandlerFunc {
 	}
 }
 
+func DoUpdateCounterJSONResponse(srv UpdateCounterService, rq models.Metrics) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if rq.Delta == nil {
+			http.Error(w, "invalid metric value", http.StatusBadRequest)
+			return
+		}
+
+		if err := srv(rq.ID, *rq.Delta); err != nil {
+			WriteError(w, err)
+			return
+		}
+
+		resp, _ := json.Marshal(rq)
+		WriteJSONResult(w, resp)
+	}
+}
+
 func DoGetCounterResponse(srv GetCounterService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
@@ -125,6 +182,35 @@ func DoGetCounterResponse(srv GetCounterService) http.HandlerFunc {
 	}
 }
 
+func DoGetCounterJSONResponse(srv GetCounterService, rq models.Metrics) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		value, err := srv(rq.ID)
+		if err != nil {
+			WriteError(w, err)
+			return
+		}
+
+		resp, err := json.Marshal(models.Metrics{
+			ID:    rq.ID,
+			MType: rq.MType,
+			Delta: value,
+		})
+		if err != nil {
+			WriteError(w, fmt.Errorf("convert to counter response not ok, %w", err))
+		}
+
+		WriteJSONResult(w, resp)
+	}
+}
+
+func WriteJSONResult(w http.ResponseWriter, response []byte) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(response); err != nil {
+		WriteError(w, fmt.Errorf("write json not ok, %w", err))
+	}
+}
+
 func WriteResult(w http.ResponseWriter, res string) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
@@ -137,13 +223,13 @@ func WriteOK(w http.ResponseWriter) {
 }
 
 func WriteError(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "text/plain")
 	if err == nil {
 		err = pkg.ErrInternalServer
 	}
 
 	errE, ok := err.(*pkg.Error)
 	if !ok {
-		log.Println(err.Error())
 		errE = pkg.ErrInternalServer
 	}
 	http.Error(w, errE.Error(), errE.HTTPStatus())

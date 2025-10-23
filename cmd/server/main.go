@@ -18,7 +18,7 @@ func main() {
 
 func run() error {
 	di := config.DI{}
-	di.Init()
+	di.Init("SERVER_")
 
 	return di.Start()
 }

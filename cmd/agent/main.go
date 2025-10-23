@@ -18,9 +18,11 @@ func main() {
 
 func run() error {
 	cfg := &agent.Config{}
-	cfg.LoadConfig()
+	cfg.LoadConfig("AGENT_")
 
 	cli := agent.NewClient(cfg.HTTP)
 
-	return cli.Srart(cfg.PollInterval, cfg.ReportInterval)
+	log.Printf("agent starts on %s\n", cfg.HTTP.Address)
+
+	return cli.Start(cfg.PollInterval, cfg.ReportInterval)
 }

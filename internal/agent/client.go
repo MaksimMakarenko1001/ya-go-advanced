@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -9,6 +12,9 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
 
 type Client struct {
@@ -50,6 +56,40 @@ func (c *Client) sendGaugeMetric(metricName string, value float64) (err error) {
 	return nil
 }
 
+func (c *Client) sendGaugeMetricJSON(metricName string, value float64) (err error) {
+	u := url.URL{
+		Scheme: "http",
+		Host:   c.host,
+		Path:   "/update/",
+	}
+
+	var buf bytes.Buffer
+	err = json.NewEncoder(&buf).Encode(models.Metrics{
+		ID:    metricName,
+		MType: pkg.MetricTypeGauge,
+		Value: &value,
+	})
+	if err != nil {
+		return fmt.Errorf("gauge encoder not ok, %w", err)
+	}
+
+	r, err := newGZipRequest(http.MethodPost, u.String(), buf.Bytes())
+	if err != nil {
+		return fmt.Errorf("gauge request not ok, %w", err)
+	}
+
+	status, err := c.send(r)
+	if err != nil {
+		return fmt.Errorf("gauge http not ok, %w", err)
+	}
+
+	if status != http.StatusOK {
+		return fmt.Errorf("gauge response status not ok, %s: %d", metricName, status)
+	}
+
+	return nil
+}
+
 func (c *Client) sendCounterMetric(metricName string, value int64) (err error) {
 	valueStr := strconv.FormatInt(value, 10)
 
@@ -68,6 +108,42 @@ func (c *Client) sendCounterMetric(metricName string, value int64) (err error) {
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to send counter metric %s: %d", metricName, resp.StatusCode)
+	}
+
+	return nil
+}
+
+func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err error) {
+
+	u := url.URL{
+		Scheme: "http",
+		Host:   c.host,
+		Path:   "/update/",
+	}
+
+	var buf bytes.Buffer
+	err = json.NewEncoder(&buf).Encode(models.Metrics{
+		ID:    metricName,
+		MType: pkg.MetricTypeCounter,
+		Delta: &value,
+	})
+
+	if err != nil {
+		return fmt.Errorf("counter encoder not ok, %w", err)
+	}
+
+	r, err := newGZipRequest(http.MethodPost, u.String(), buf.Bytes())
+	if err != nil {
+		return fmt.Errorf("counter request not ok, %w", err)
+	}
+
+	status, err := c.send(r)
+	if err != nil {
+		return fmt.Errorf("counter http not ok, %w", err)
+	}
+
+	if status != http.StatusOK {
+		return fmt.Errorf("counter response status not ok, %s: %d", metricName, status)
 	}
 
 	return nil
@@ -115,7 +191,7 @@ func (c *Client) collectGaugeMetrics() map[string]float64 {
 
 }
 
-func (c *Client) Srart(pollInterval time.Duration, reportInterval time.Duration) error {
+func (c *Client) Start(pollInterval time.Duration, reportInterval time.Duration) error {
 	ticker := time.NewTicker(pollInterval)
 	reportTicker := time.NewTicker(reportInterval)
 	defer ticker.Stop()
@@ -128,26 +204,62 @@ func (c *Client) Srart(pollInterval time.Duration, reportInterval time.Duration)
 	for {
 		select {
 		case <-ticker.C:
-			log.Printf("Collecting metrics")
+			log.Println("Collecting metrics")
 			gaugeMetrics = c.collectGaugeMetrics()
 			counterMetrics = c.collectCounterMetrics()
 
 		case <-reportTicker.C:
-			log.Printf("Reporting metrics")
+			log.Println("Reporting metrics")
 			// TODO implement fan-out technique
 			for name, value := range gaugeMetrics {
-				err = c.sendGaugeMetric(name, value)
+				err = c.sendGaugeMetricJSON(name, value)
 				if err != nil {
-					return err
+					log.Println(err.Error())
 				}
 			}
 			for name, value := range counterMetrics {
-				err = c.sendCounterMetric(name, value)
+				err = c.sendCounterMetricJSON(name, value)
 				if err != nil {
-					return err
+					log.Println(err.Error())
 				}
 			}
 		}
 	}
 
+}
+
+func (c *Client) send(r *http.Request) (int, error) {
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Content-Encoding", "gzip")
+	r.Header.Set("Accept-Encoding", "gzip")
+
+	resp, err := c.httpClient.Do(r)
+	if err != nil {
+		return 0, err
+	}
+
+	defer resp.Body.Close()
+
+	return resp.StatusCode, nil
+}
+
+func newGZipRequest(method string, url string, body []byte) (*http.Request, error) {
+	buf := bytes.NewBuffer(nil)
+	zw := gzip.NewWriter(buf)
+
+	_, err := zw.Write(body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequest(method, url, buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return request, nil
 }
