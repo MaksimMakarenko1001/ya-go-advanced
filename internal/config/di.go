@@ -1,11 +1,13 @@
 package config
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/encode"
@@ -38,15 +40,31 @@ type DI struct {
 	api struct {
 		external *handler.API
 	}
+	infr struct {
+		db *db.PGConnect
+	}
 }
 
 func (di *DI) Init(envPrefix string) {
 	di.config = &diConfig{}
 	di.config.loadConfig(envPrefix)
 
+	di.initDB(context.Background())
 	di.initRepositories()
 	di.initServices()
 	di.initAPI()
+}
+
+func (di *DI) initDB(ctx context.Context) {
+	var err error
+
+	initCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
+	di.infr.db, err = db.New(initCtx, di.config.Database)
+	if err != nil {
+		log.Fatalf("init db: %s", err.Error())
+	}
 }
 
 func (di *DI) initRepositories() {
@@ -76,7 +94,7 @@ func (di *DI) initAPI() {
 		di.services.listMetricService,
 		di.services.dumpMetricService,
 	)
-
+	di.api.external.Ping(di.infr.db)
 }
 
 func (di *DI) Start() error {
@@ -124,6 +142,8 @@ func (di *DI) Start() error {
 
 	errCh <- err
 	wg.Wait()
+
+	di.infr.db.Close()
 
 	return err
 }
