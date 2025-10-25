@@ -63,7 +63,7 @@ func (di *DI) initDB(ctx context.Context) {
 
 	di.infr.db, err = db.New(initCtx, di.config.Database)
 	if err != nil {
-		log.Fatalf("init db: %s", err.Error())
+		log.Printf("init db: %s", err.Error())
 	}
 }
 
