@@ -10,6 +10,7 @@ import (
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
+	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
 	"github.com/stretchr/testify/assert"
 )
@@ -230,7 +231,7 @@ func TestDoUpdateCounterResponse(t *testing.T) {
 			metricValue: "99.99",
 			expected: expected{
 				code: 400,
-				body: "invalid metric value\n",
+				body: "[BAD_REQUEST] Bad request (invalid metric value)\n",
 			},
 		},
 		{
@@ -243,14 +244,18 @@ func TestDoUpdateCounterResponse(t *testing.T) {
 			},
 		},
 	}
-	handler := handler.DoUpdateCounterResponse(updateCounterService.New(&MetricRepositoryMock{}).Do)
+
+	service := updateFlatService.New(
+		updateCounterService.New(&MetricRepositoryMock{}),
+		nil,
+	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/update/counter/"+tt.metricName+"/"+tt.metricValue, nil)
 			w := httptest.NewRecorder()
 
-			handler.ServeHTTP(w, request)
+			handler.DoUpdateFlatResponse(service.Do, "counter", tt.metricName, tt.metricValue).ServeHTTP(w, request)
 
 			assert.Equal(t, tt.expected.code, w.Code)
 			if tt.expected.body != "" {
@@ -286,7 +291,7 @@ func TestDoUpdateGaugeResponse(t *testing.T) {
 			metricValue: "99,99",
 			expected: expected{
 				code: 400,
-				body: "invalid metric value\n",
+				body: "[BAD_REQUEST] Bad request (invalid metric value)\n",
 			},
 		},
 		{
@@ -299,14 +304,18 @@ func TestDoUpdateGaugeResponse(t *testing.T) {
 			},
 		},
 	}
-	handler := handler.DoUpdateGaugeResponse(updateGaugeService.New(&MetricRepositoryMock{}).Do)
+
+	service := updateFlatService.New(
+		nil,
+		updateGaugeService.New(&MetricRepositoryMock{}),
+	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/update/gauge/"+tt.metricName+"/"+tt.metricValue, nil)
 			w := httptest.NewRecorder()
 
-			handler.ServeHTTP(w, request)
+			handler.DoUpdateFlatResponse(service.Do, "gauge", tt.metricName, tt.metricValue).ServeHTTP(w, request)
 
 			assert.Equal(t, tt.expected.code, w.Code)
 			if tt.expected.body != "" {

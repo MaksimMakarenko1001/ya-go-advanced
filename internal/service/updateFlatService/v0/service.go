@@ -1,7 +1,8 @@
 package v0
 
 import (
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
+	"strconv"
+
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
@@ -27,19 +28,22 @@ func New(
 	}
 }
 
-func (srv *Service) Do(metric models.Metrics) (err error) {
-	switch metric.MType {
+func (srv *Service) Do(
+	metricType, metricName, metricValue string,
+) (err error) {
+	switch metricType {
 	case pkg.MetricTypeCounter:
-		if metric.Delta == nil {
-			return errInvalidMetricValue
-		}
-		return srv.updateCounterService.Do(metric.ID, *metric.Delta)
-
-	case pkg.MetricTypeGauge:
-		if metric.Value == nil {
+		if valueInt, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
 			return errInvalidMetricValue
 		} else {
-			return srv.updateGaugeService.Do(metric.ID, *metric.Value)
+			return srv.updateCounterService.Do(metricName, valueInt)
+		}
+
+	case pkg.MetricTypeGauge:
+		if valueFloat, err := strconv.ParseFloat(metricValue, 64); err != nil {
+			return errInvalidMetricValue
+		} else {
+			return srv.updateGaugeService.Do(metricName, valueFloat)
 		}
 
 	default:

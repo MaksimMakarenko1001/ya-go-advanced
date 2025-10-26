@@ -29,9 +29,8 @@ const html = `<html>
 </html>`
 
 type (
-	UpdateGaugeService   func(metricName string, metricValue float64) (err error)
-	UpdateCounterService func(metricName string, metricValue int64) (err error)
-	UpdateService        func(metricType, metricName, metricValue string) (err error)
+	UpdateFlatService func(metricType, metricName, metricValue string) (err error)
+	UpdateService     func(metric models.Metrics) (err error)
 
 	GetGaugeService   func(metricName string) (metricValue *float64, err error)
 	GetCounterService func(metricName string) (metricValue *int64, err error)
@@ -54,7 +53,7 @@ func DoListMetricResponse(srv ListMetricService) http.HandlerFunc {
 	}
 }
 
-func DoUpdateResponse(srv UpdateService, metricType, metricName, metricValue string) http.HandlerFunc {
+func DoUpdateFlatResponse(srv UpdateFlatService, metricType, metricName, metricValue string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := srv(metricType, metricName, metricValue); err != nil {
 			WriteError(w, err)
@@ -65,40 +64,20 @@ func DoUpdateResponse(srv UpdateService, metricType, metricName, metricValue str
 	}
 }
 
-func DoUpdateGaugeResponse(srv UpdateGaugeService) http.HandlerFunc {
+func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
+		var metric models.Metrics
 
-		value, err := strconv.ParseFloat(parts[4], 64)
-		if err != nil {
-			http.Error(w, "invalid metric value", http.StatusBadRequest)
-			return
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 
-		name := parts[3]
-
-		if err := srv(name, value); err != nil {
+		if err := srv(metric); err != nil {
 			WriteError(w, err)
 			return
 		}
 
-		WriteOK(w)
-	}
-}
-
-func DoUpdateGaugeJSONResponse(srv UpdateGaugeService, rq models.Metrics) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if rq.Value == nil {
-			http.Error(w, "invalid metric value", http.StatusBadRequest)
-			return
-		}
-
-		if err := srv(rq.ID, *rq.Value); err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		resp, _ := json.Marshal(rq)
+		resp, _ := json.Marshal(metric)
 		WriteJSONResult(w, resp)
 	}
 }
@@ -136,44 +115,6 @@ func DoGetGaugeJSONResponse(srv GetGaugeService, rq models.Metrics) http.Handler
 			WriteError(w, fmt.Errorf("convert to gauge response not ok, %w", err))
 		}
 
-		WriteJSONResult(w, resp)
-	}
-}
-
-func DoUpdateCounterResponse(srv UpdateCounterService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
-
-		value, err := strconv.ParseInt(parts[4], 10, 64)
-		if err != nil {
-			http.Error(w, "invalid metric value", http.StatusBadRequest)
-			return
-		}
-
-		name := parts[3]
-
-		if err := srv(name, value); err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		WriteOK(w)
-	}
-}
-
-func DoUpdateCounterJSONResponse(srv UpdateCounterService, rq models.Metrics) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if rq.Delta == nil {
-			http.Error(w, "invalid metric value", http.StatusBadRequest)
-			return
-		}
-
-		if err := srv(rq.ID, *rq.Delta); err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		resp, _ := json.Marshal(rq)
 		WriteJSONResult(w, resp)
 	}
 }
