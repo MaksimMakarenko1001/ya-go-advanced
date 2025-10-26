@@ -31,6 +31,7 @@ const html = `<html>
 type (
 	UpdateGaugeService   func(metricName string, metricValue float64) (err error)
 	UpdateCounterService func(metricName string, metricValue int64) (err error)
+	UpdateService        func(metricType, metricName, metricValue string) (err error)
 
 	GetGaugeService   func(metricName string) (metricValue *float64, err error)
 	GetCounterService func(metricName string) (metricValue *int64, err error)
@@ -50,6 +51,17 @@ func DoListMetricResponse(srv ListMetricService) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
 		io.WriteString(w, index)
+	}
+}
+
+func DoUpdateResponse(srv UpdateService, metricType, metricName, metricValue string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := srv(metricType, metricName, metricValue); err != nil {
+			WriteError(w, err)
+			return
+		}
+
+		WriteOK(w)
 	}
 }
 

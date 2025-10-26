@@ -18,6 +18,7 @@ import (
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
+	updateService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateService/v0"
 )
 
 type DI struct {
@@ -29,6 +30,7 @@ type DI struct {
 	services struct {
 		updateCounterService *updateCounterService.Service
 		updateGaugeService   *updateGaugeService.Service
+		updateService        *updateService.Service
 
 		getCounterService *getCounterService.Service
 		getGaugeService   *getGaugeService.Service
@@ -75,6 +77,7 @@ func (di *DI) initRepositories() {
 func (di *DI) initServices() {
 	di.services.updateCounterService = updateCounterService.New(di.repositories.metricStorage)
 	di.services.updateGaugeService = updateGaugeService.New(di.repositories.metricStorage)
+	di.services.updateService = updateService.New(di.services.updateCounterService, di.services.updateGaugeService)
 
 	di.services.getCounterService = getCounterService.New(di.repositories.metricStorage)
 	di.services.getGaugeService = getGaugeService.New(di.repositories.metricStorage)
@@ -87,6 +90,7 @@ func (di *DI) initServices() {
 func (di *DI) initAPI() {
 	di.api.external = handler.New(
 		logger.New(di.config.Logger),
+		di.services.updateService,
 		di.services.updateCounterService,
 		di.services.updateGaugeService,
 		di.services.getCounterService,
@@ -95,6 +99,7 @@ func (di *DI) initAPI() {
 		di.services.dumpMetricService,
 	)
 	di.api.external.Ping(di.infr.db)
+	di.api.external.Update()
 }
 
 func (di *DI) Start() error {
