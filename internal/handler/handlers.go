@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
@@ -34,6 +32,7 @@ type (
 
 	GetGaugeService   func(metricName string) (metricValue *float64, err error)
 	GetCounterService func(metricName string) (metricValue *int64, err error)
+	GetFlatService    func(metricType, metricName string) (metricValue string, err error)
 
 	ListMetricService func(template string) (index string, err error)
 )
@@ -82,19 +81,15 @@ func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 	}
 }
 
-func DoGetGaugeResponse(srv GetGaugeService) http.HandlerFunc {
+func DoGetFlatResponse(srv GetFlatService, metricType, metricName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
-
-		name := parts[3]
-
-		value, err := srv(name)
+		value, err := srv(metricType, metricName)
 		if err != nil {
 			WriteError(w, err)
 			return
 		}
 
-		WriteResult(w, strconv.FormatFloat(*value, 'f', -1, 64))
+		WriteResult(w, value)
 	}
 }
 
@@ -116,22 +111,6 @@ func DoGetGaugeJSONResponse(srv GetGaugeService, rq models.Metrics) http.Handler
 		}
 
 		WriteJSONResult(w, resp)
-	}
-}
-
-func DoGetCounterResponse(srv GetCounterService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
-
-		name := parts[3]
-
-		value, err := srv(name)
-		if err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		WriteResult(w, strconv.FormatInt(*value, 10))
 	}
 }
 

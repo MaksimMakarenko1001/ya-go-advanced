@@ -7,6 +7,7 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
+	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
@@ -136,14 +137,18 @@ func TestDoGetCounterResponse(t *testing.T) {
 			},
 		},
 	}
-	handler := handler.DoGetCounterResponse(getCounterService.New(&MetricRepositoryMock{}).Do)
+
+	service := getFlatService.New(
+		getCounterService.New(&MetricRepositoryMock{}),
+		nil,
+	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/value/counter/"+tt.metricName, nil)
 			w := httptest.NewRecorder()
 
-			handler.ServeHTTP(w, request)
+			handler.DoGetFlatResponse(service.Do, "counter", tt.metricName).ServeHTTP(w, request)
 
 			assert.Equal(t, tt.expected.code, w.Code)
 			if tt.expected.body != "" {
@@ -188,14 +193,18 @@ func TestDoGetGaugeResponse(t *testing.T) {
 			},
 		},
 	}
-	handler := handler.DoGetGaugeResponse(getGaugeService.New(&MetricRepositoryMock{}).Do)
+
+	service := getFlatService.New(
+		nil,
+		getGaugeService.New(&MetricRepositoryMock{}),
+	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/value/gauge/"+tt.metricName, nil)
 			w := httptest.NewRecorder()
 
-			handler.ServeHTTP(w, request)
+			handler.DoGetFlatResponse(service.Do, "gauge", tt.metricName).ServeHTTP(w, request)
 
 			assert.Equal(t, tt.expected.code, w.Code)
 			if tt.expected.body != "" {

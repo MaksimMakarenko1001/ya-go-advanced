@@ -13,6 +13,7 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
+	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
@@ -34,6 +35,7 @@ type API struct {
 
 	getCounterService *getCounterService.Service
 	getGaugeService   *getGaugeService.Service
+	getFlatService    *getFlatService.Service
 
 	listMetricService *listMetricService.Service
 
@@ -46,6 +48,7 @@ func New(
 	updateService *updateService.Service,
 	getCounterService *getCounterService.Service,
 	getGaugeService *getGaugeService.Service,
+	getFlatService *getFlatService.Service,
 	listMetricService *listMetricService.Service,
 	dumpMetricService *dumpMetricService.Service,
 ) *API {
@@ -56,6 +59,7 @@ func New(
 		updateService:     updateService,
 		getCounterService: getCounterService,
 		getGaugeService:   getGaugeService,
+		getFlatService:    getFlatService,
 		listMetricService: listMetricService,
 		dumpMetricService: dumpMetricService,
 	}
@@ -99,28 +103,20 @@ func (api API) UpdateJSONHandle(withSync bool) {
 	})
 }
 
+func (api API) GetHandle() {
+	api.router.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		handler := DoGetFlatResponse(
+			api.getFlatService.Do, chi.URLParam(r, "type"), chi.URLParam(r, "name"),
+		)
+
+		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
+	})
+}
+
 func (api API) Route() {
 	api.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		handler := DoListMetricResponse(api.listMetricService.Do)
 		handler.ServeHTTP(w, r)
-	})
-
-	api.router.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
-		var handler http.Handler
-
-		switch chi.URLParam(r, "type") {
-		case pkg.MetricTypeCounter:
-			handler = DoGetCounterResponse(api.getCounterService.Do)
-		case pkg.MetricTypeGauge:
-			handler = DoGetGaugeResponse(api.getGaugeService.Do)
-		}
-
-		if handler == nil {
-			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, "invalid metric type", http.StatusBadRequest)
-			})
-		}
-		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
 	})
 
 	api.router.Post("/value/", func(w http.ResponseWriter, r *http.Request) {
