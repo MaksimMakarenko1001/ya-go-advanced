@@ -1,21 +1,27 @@
 package config
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/encode"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/storage/inmemory"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
+	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
+	getService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
+	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
+	updateService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateService/v0"
 )
 
 type DI struct {
@@ -25,11 +31,18 @@ type DI struct {
 		encoder       *encode.JSONEncode
 	}
 	services struct {
-		updateCounterService *updateCounterService.Service
-		updateGaugeService   *updateGaugeService.Service
+		included struct {
+			updateCounterService *updateCounterService.Service
+			updateGaugeService   *updateGaugeService.Service
 
-		getCounterService *getCounterService.Service
-		getGaugeService   *getGaugeService.Service
+			getCounterService *getCounterService.Service
+			getGaugeService   *getGaugeService.Service
+		}
+		updateFlatService *updateFlatService.Service
+		updateService     *updateService.Service
+
+		getFlatService *getFlatService.Service
+		getService     *getService.Service
 
 		listMetricService *listMetricService.Service
 
@@ -38,15 +51,31 @@ type DI struct {
 	api struct {
 		external *handler.API
 	}
+	infr struct {
+		db *db.PGConnect
+	}
 }
 
 func (di *DI) Init(envPrefix string) {
 	di.config = &diConfig{}
 	di.config.loadConfig(envPrefix)
 
+	di.initDB(context.Background())
 	di.initRepositories()
 	di.initServices()
 	di.initAPI()
+}
+
+func (di *DI) initDB(ctx context.Context) {
+	var err error
+
+	initCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
+	di.infr.db, err = db.New(initCtx, di.config.Database)
+	if err != nil {
+		log.Printf("init db: %s", err.Error())
+	}
 }
 
 func (di *DI) initRepositories() {
@@ -55,11 +84,21 @@ func (di *DI) initRepositories() {
 }
 
 func (di *DI) initServices() {
-	di.services.updateCounterService = updateCounterService.New(di.repositories.metricStorage)
-	di.services.updateGaugeService = updateGaugeService.New(di.repositories.metricStorage)
+	di.services.included.updateCounterService = updateCounterService.New(di.repositories.metricStorage)
+	di.services.included.updateGaugeService = updateGaugeService.New(di.repositories.metricStorage)
 
-	di.services.getCounterService = getCounterService.New(di.repositories.metricStorage)
-	di.services.getGaugeService = getGaugeService.New(di.repositories.metricStorage)
+	di.services.included.getCounterService = getCounterService.New(di.repositories.metricStorage)
+	di.services.included.getGaugeService = getGaugeService.New(di.repositories.metricStorage)
+
+	di.services.updateFlatService = updateFlatService.New(di.services.included.updateCounterService,
+		di.services.included.updateGaugeService)
+	di.services.updateService = updateService.New(di.services.included.updateCounterService,
+		di.services.included.updateGaugeService)
+
+	di.services.getFlatService = getFlatService.New(di.services.included.getCounterService,
+		di.services.included.getGaugeService)
+	di.services.getService = getService.New(di.services.included.getCounterService,
+		di.services.included.getGaugeService)
 
 	di.services.listMetricService = listMetricService.New(di.repositories.metricStorage)
 
@@ -69,14 +108,13 @@ func (di *DI) initServices() {
 func (di *DI) initAPI() {
 	di.api.external = handler.New(
 		logger.New(di.config.Logger),
-		di.services.updateCounterService,
-		di.services.updateGaugeService,
-		di.services.getCounterService,
-		di.services.getGaugeService,
+		di.services.updateFlatService,
+		di.services.updateService,
+		di.services.getFlatService,
+		di.services.getService,
 		di.services.listMetricService,
 		di.services.dumpMetricService,
 	)
-
 }
 
 func (di *DI) Start() error {
@@ -87,9 +125,6 @@ func (di *DI) Start() error {
 			log.Println(err.Error())
 		}
 	}
-
-	withDump := di.config.StoreInterval == 0
-	di.api.external.Route(withDump)
 
 	var wg sync.WaitGroup
 	errCh := make(chan error)
@@ -116,6 +151,13 @@ func (di *DI) Start() error {
 		}()
 	}
 
+	di.api.external.HandlePing(di.infr.db)
+	di.api.external.HandleIndex()
+	di.api.external.HandleUpdate()
+	di.api.external.HandleUpdateJSON(di.config.StoreInterval == 0)
+	di.api.external.HandleGet()
+	di.api.external.HandleGetJSON()
+
 	err := http.ListenAndServe(config.Address, handler.Conveyor(
 		di.api.external,
 		di.api.external.WithLogging,
@@ -124,6 +166,8 @@ func (di *DI) Start() error {
 
 	errCh <- err
 	wg.Wait()
+
+	di.infr.db.Close()
 
 	return err
 }
