@@ -33,6 +33,7 @@ type (
 	GetGaugeService   func(metricName string) (metricValue *float64, err error)
 	GetCounterService func(metricName string) (metricValue *int64, err error)
 	GetFlatService    func(metricType, metricName string) (metricValue string, err error)
+	GetService        func(metricType, metricName string) (metric *models.Metrics, err error)
 
 	ListMetricService func(template string) (index string, err error)
 )
@@ -69,6 +70,7 @@ func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
 		if err := srv(metric); err != nil {
@@ -93,42 +95,23 @@ func DoGetFlatResponse(srv GetFlatService, metricType, metricName string) http.H
 	}
 }
 
-func DoGetGaugeJSONResponse(srv GetGaugeService, rq models.Metrics) http.HandlerFunc {
+func DoGetJSONResponse(srv GetService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		value, err := srv(rq.ID)
+		var request models.Metrics
+
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		metric, err := srv(request.MType, request.ID)
 		if err != nil {
 			WriteError(w, err)
 			return
 		}
 
-		resp, err := json.Marshal(models.Metrics{
-			ID:    rq.ID,
-			MType: rq.MType,
-			Value: value,
-		})
+		resp, err := json.Marshal(*metric)
 		if err != nil {
-			WriteError(w, fmt.Errorf("convert to gauge response not ok, %w", err))
-		}
-
-		WriteJSONResult(w, resp)
-	}
-}
-
-func DoGetCounterJSONResponse(srv GetCounterService, rq models.Metrics) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		value, err := srv(rq.ID)
-		if err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		resp, err := json.Marshal(models.Metrics{
-			ID:    rq.ID,
-			MType: rq.MType,
-			Delta: value,
-		})
-		if err != nil {
-			WriteError(w, fmt.Errorf("convert to counter response not ok, %w", err))
+			WriteError(w, fmt.Errorf("convert to get response not ok, %w", err))
 		}
 
 		WriteJSONResult(w, resp)

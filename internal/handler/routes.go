@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -10,15 +9,12 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
-	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
-	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
+	getService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
 	updateService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateService/v0"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
 
 type Route struct {
@@ -28,14 +24,14 @@ type Route struct {
 }
 
 type API struct {
-	router            *chi.Mux
-	logger            logger.HTTPLogger
+	router *chi.Mux
+	logger logger.HTTPLogger
+
 	updateFlatService *updateFlatService.Service
 	updateService     *updateService.Service
 
-	getCounterService *getCounterService.Service
-	getGaugeService   *getGaugeService.Service
-	getFlatService    *getFlatService.Service
+	getFlatService *getFlatService.Service
+	getService     *getService.Service
 
 	listMetricService *listMetricService.Service
 
@@ -46,9 +42,8 @@ func New(
 	logger logger.HTTPLogger,
 	updateFlatService *updateFlatService.Service,
 	updateService *updateService.Service,
-	getCounterService *getCounterService.Service,
-	getGaugeService *getGaugeService.Service,
 	getFlatService *getFlatService.Service,
+	getService *getService.Service,
 	listMetricService *listMetricService.Service,
 	dumpMetricService *dumpMetricService.Service,
 ) *API {
@@ -57,9 +52,8 @@ func New(
 		logger:            logger,
 		updateFlatService: updateFlatService,
 		updateService:     updateService,
-		getCounterService: getCounterService,
-		getGaugeService:   getGaugeService,
 		getFlatService:    getFlatService,
+		getService:        getService,
 		listMetricService: listMetricService,
 		dumpMetricService: dumpMetricService,
 	}
@@ -69,7 +63,7 @@ func (api API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	api.router.ServeHTTP(w, r)
 }
 
-func (api API) PingHandle(db *db.PGConnect) {
+func (api API) HandlePing(db *db.PGConnect) {
 	api.router.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 		defer cancel()
@@ -82,7 +76,14 @@ func (api API) PingHandle(db *db.PGConnect) {
 	})
 }
 
-func (api API) UpdateHandle() {
+func (api API) HandleIndex() {
+	api.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		handler := DoListMetricResponse(api.listMetricService.Do)
+		handler.ServeHTTP(w, r)
+	})
+}
+
+func (api API) HandleUpdate() {
 	api.router.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
 		handler := DoUpdateFlatResponse(
 			api.updateFlatService.Do, chi.URLParam(r, "type"), chi.URLParam(r, "name"), chi.URLParam(r, "value"),
@@ -92,7 +93,7 @@ func (api API) UpdateHandle() {
 	})
 }
 
-func (api API) UpdateJSONHandle(withSync bool) {
+func (api API) HandleUpdateJSON(withSync bool) {
 	api.router.Post("/update/", func(w http.ResponseWriter, r *http.Request) {
 		var handler http.Handler = DoUpdateJSONResponse(api.updateService.Do)
 
@@ -103,7 +104,7 @@ func (api API) UpdateJSONHandle(withSync bool) {
 	})
 }
 
-func (api API) GetHandle() {
+func (api API) HandleGet() {
 	api.router.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
 		handler := DoGetFlatResponse(
 			api.getFlatService.Do, chi.URLParam(r, "type"), chi.URLParam(r, "name"),
@@ -113,34 +114,10 @@ func (api API) GetHandle() {
 	})
 }
 
-func (api API) Route() {
-	api.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		handler := DoListMetricResponse(api.listMetricService.Do)
-		handler.ServeHTTP(w, r)
-	})
-
+func (api API) HandleGetJSON() {
 	api.router.Post("/value/", func(w http.ResponseWriter, r *http.Request) {
-		var handler http.Handler
-		var metric models.Metrics
+		var handler http.Handler = DoGetJSONResponse(api.getService.Do)
 
-		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-			})
-		}
-
-		switch metric.MType {
-		case pkg.MetricTypeCounter:
-			handler = DoGetCounterJSONResponse(api.getCounterService.Do, metric)
-		case pkg.MetricTypeGauge:
-			handler = DoGetGaugeJSONResponse(api.getGaugeService.Do, metric)
-		}
-
-		if handler == nil {
-			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, "invalid metric type", http.StatusBadRequest)
-			})
-		}
 		handler.ServeHTTP(w, r)
 	})
 }
