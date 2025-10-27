@@ -17,15 +17,13 @@ func New(metricRepo MetricRepository) *Service {
 func (srv *Service) Do(
 	metricName string,
 ) (*int64, error) {
-	value, ok := srv.metricRepository.Get(metricName)
+	value, ok, err := srv.metricRepository.GetCounter(metricName)
+	if err != nil {
+		return nil, pkg.ErrInternalServer.SetInfo(err.Error())
+	}
 	if !ok {
 		return nil, pkg.ErrNotFound.SetInfof("`%s` not found", metricName)
 	}
 
-	metricValue, ok := value.(int64)
-	if !ok {
-		return nil, pkg.ErrBadRequest.SetInfof("`%s` type mismatch", metricName)
-	}
-
-	return &metricValue, nil
+	return &value, nil
 }

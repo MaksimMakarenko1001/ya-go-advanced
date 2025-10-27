@@ -39,35 +39,33 @@ const html = `<html>
 type MetricRepositoryMock struct {
 }
 
-func (m *MetricRepositoryMock) Add(name string, value int64) (ok bool) {
-	return name == "ok"
+func (m *MetricRepositoryMock) Add(name string, value int64) (ok bool, err error) {
+	return name == "ok", nil
 }
 
-func (m *MetricRepositoryMock) Update(name string, value float64) (ok bool) {
-	return name == "ok"
+func (m *MetricRepositoryMock) Update(name string, value float64) (ok bool, err error) {
+	return name == "ok", nil
 }
 
-func (m *MetricRepositoryMock) Get(name string) (any, bool) {
+func (m *MetricRepositoryMock) GetCounter(name string) (int64, bool, error) {
 	if name == "ok_counter" {
-		return int64(99), true
+		return 99, true, nil
 	}
-	if name == "ok_gauge" {
-		return float64(99.99), true
-	}
-	if name == "not_ok_counter" {
-		return 99.99, true
-	}
-	if name == "not_ok_gauge" {
-		return "99.99", true
-	}
-	return nil, false
+	return 0, false, nil
 }
 
-func (m *MetricRepositoryMock) List() []listMetricService.MetricItem {
+func (m *MetricRepositoryMock) GetGauge(name string) (float64, bool, error) {
+	if name == "ok_gauge" {
+		return 99.99, true, nil
+	}
+	return 0., false, nil
+}
+
+func (m *MetricRepositoryMock) List() ([]listMetricService.MetricItem, error) {
 	return []listMetricService.MetricItem{
 		{Name: "gauge", Value: 99.99},
 		{Name: "counter", Value: 99},
-	}
+	}, nil
 }
 
 func TestDoListMetricResponse(t *testing.T) {
@@ -128,14 +126,6 @@ func TestDoGetCounterResponse(t *testing.T) {
 				body: "[NOT_FOUND] Not found (`not_found` not found)\n",
 			},
 		},
-		{
-			name:       "negative test [exists other type]",
-			metricName: "not_ok_counter",
-			expected: expected{
-				code: 400,
-				body: "[BAD_REQUEST] Bad request (`not_ok_counter` type mismatch)\n",
-			},
-		},
 	}
 
 	service := getFlatService.New(
@@ -182,14 +172,6 @@ func TestDoGetGaugeResponse(t *testing.T) {
 			expected: expected{
 				code: 404,
 				body: "[NOT_FOUND] Not found (`not_found` not found)\n",
-			},
-		},
-		{
-			name:       "negative test [exists other type]",
-			metricName: "not_ok_gauge",
-			expected: expected{
-				code: 400,
-				body: "[BAD_REQUEST] Bad request (`not_ok_gauge` type mismatch)\n",
 			},
 		},
 	}
@@ -243,15 +225,6 @@ func TestDoUpdateCounterResponse(t *testing.T) {
 				body: "[BAD_REQUEST] Bad request (invalid metric value)\n",
 			},
 		},
-		{
-			name:        "negative test [exists other type]",
-			metricName:  "not_ok",
-			metricValue: "100",
-			expected: expected{
-				code: 400,
-				body: "",
-			},
-		},
 	}
 
 	service := updateFlatService.New(
@@ -301,15 +274,6 @@ func TestDoUpdateGaugeResponse(t *testing.T) {
 			expected: expected{
 				code: 400,
 				body: "[BAD_REQUEST] Bad request (invalid metric value)\n",
-			},
-		},
-		{
-			name:        "negative test [exists other type]",
-			metricName:  "not_ok",
-			metricValue: "100.000",
-			expected: expected{
-				code: 400,
-				body: "",
 			},
 		},
 	}
