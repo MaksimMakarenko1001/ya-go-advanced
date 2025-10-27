@@ -2,6 +2,7 @@ package v0
 
 import (
 	"bytes"
+	"context"
 	"html/template"
 	"slices"
 	"strings"
@@ -19,8 +20,8 @@ func New(metricRepo MetricRepository) *Service {
 	}
 }
 
-func (srv *Service) Do(html string) (index string, err error) {
-	list, err := srv.metricRepository.List()
+func (srv *Service) Do(ctx context.Context, html string) (index string, err error) {
+	list, err := srv.metricRepository.List(ctx)
 	if err != nil {
 		return "", pkg.ErrInternalServer.SetInfo(err.Error())
 	}

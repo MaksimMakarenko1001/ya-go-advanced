@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,29 +40,29 @@ const html = `<html>
 type MetricRepositoryMock struct {
 }
 
-func (m *MetricRepositoryMock) Add(name string, value int64) (ok bool, err error) {
+func (m *MetricRepositoryMock) Add(ctx context.Context, name string, value int64) (ok bool, err error) {
 	return name == "ok", nil
 }
 
-func (m *MetricRepositoryMock) Update(name string, value float64) (ok bool, err error) {
+func (m *MetricRepositoryMock) Update(ctx context.Context, name string, value float64) (ok bool, err error) {
 	return name == "ok", nil
 }
 
-func (m *MetricRepositoryMock) GetCounter(name string) (int64, bool, error) {
+func (m *MetricRepositoryMock) GetCounter(ctx context.Context, name string) (int64, bool, error) {
 	if name == "ok_counter" {
 		return 99, true, nil
 	}
 	return 0, false, nil
 }
 
-func (m *MetricRepositoryMock) GetGauge(name string) (float64, bool, error) {
+func (m *MetricRepositoryMock) GetGauge(ctx context.Context, name string) (float64, bool, error) {
 	if name == "ok_gauge" {
 		return 99.99, true, nil
 	}
 	return 0., false, nil
 }
 
-func (m *MetricRepositoryMock) List() ([]listMetricService.MetricItem, error) {
+func (m *MetricRepositoryMock) List(ctx context.Context) ([]listMetricService.MetricItem, error) {
 	return []listMetricService.MetricItem{
 		{Name: "gauge", Value: 99.99},
 		{Name: "counter", Value: 99},

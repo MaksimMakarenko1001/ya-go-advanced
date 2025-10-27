@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,21 +28,21 @@ const html = `<html>
 </html>`
 
 type (
-	UpdateFlatService func(metricType, metricName, metricValue string) (err error)
-	UpdateService     func(metric models.Metrics) (err error)
+	UpdateFlatService func(ctx context.Context, metricType, metricName, metricValue string) (err error)
+	UpdateService     func(ctx context.Context, metric models.Metrics) (err error)
 
-	GetGaugeService   func(metricName string) (metricValue *float64, err error)
-	GetCounterService func(metricName string) (metricValue *int64, err error)
-	GetFlatService    func(metricType, metricName string) (metricValue string, err error)
-	GetService        func(metricType, metricName string) (metric *models.Metrics, err error)
+	GetGaugeService   func(ctx context.Context, metricName string) (metricValue *float64, err error)
+	GetCounterService func(ctx context.Context, metricName string) (metricValue *int64, err error)
+	GetFlatService    func(ctx context.Context, metricType, metricName string) (metricValue string, err error)
+	GetService        func(ctx context.Context, metricType, metricName string) (metric *models.Metrics, err error)
 
-	ListMetricService func(template string) (index string, err error)
+	ListMetricService func(ctx context.Context, template string) (index string, err error)
 )
 
 func DoListMetricResponse(srv ListMetricService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		index, err := srv(html)
+		index, err := srv(r.Context(), html)
 		if err != nil {
 			WriteError(w, err)
 			return
@@ -55,7 +56,7 @@ func DoListMetricResponse(srv ListMetricService) http.HandlerFunc {
 
 func DoUpdateFlatResponse(srv UpdateFlatService, metricType, metricName, metricValue string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := srv(metricType, metricName, metricValue); err != nil {
+		if err := srv(r.Context(), metricType, metricName, metricValue); err != nil {
 			WriteError(w, err)
 			return
 		}
@@ -73,7 +74,7 @@ func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 			return
 		}
 
-		if err := srv(metric); err != nil {
+		if err := srv(r.Context(), metric); err != nil {
 			WriteError(w, err)
 			return
 		}
@@ -85,7 +86,7 @@ func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 
 func DoGetFlatResponse(srv GetFlatService, metricType, metricName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		value, err := srv(metricType, metricName)
+		value, err := srv(r.Context(), metricType, metricName)
 		if err != nil {
 			WriteError(w, err)
 			return
@@ -103,7 +104,7 @@ func DoGetJSONResponse(srv GetService) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		metric, err := srv(request.MType, request.ID)
+		metric, err := srv(r.Context(), request.MType, request.ID)
 		if err != nil {
 			WriteError(w, err)
 			return

@@ -1,6 +1,7 @@
 package v0
 
 import (
+	"context"
 	"strconv"
 
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
@@ -23,17 +24,17 @@ func New(
 	}
 }
 
-func (srv *Service) Do(metricType, metricName string) (value string, err error) {
+func (srv *Service) Do(ctx context.Context, metricType, metricName string) (value string, err error) {
 	switch metricType {
 	case pkg.MetricTypeCounter:
-		if valueInt, err := srv.getCounterService.Do(metricName); err != nil {
+		if valueInt, err := srv.getCounterService.Do(ctx, metricName); err != nil {
 			return "", err
 		} else {
 			return strconv.FormatInt(*valueInt, 10), nil
 		}
 
 	case pkg.MetricTypeGauge:
-		if valueFloat, err := srv.getGaugeService.Do(metricName); err != nil {
+		if valueFloat, err := srv.getGaugeService.Do(ctx, metricName); err != nil {
 			return "", err
 		} else {
 			return strconv.FormatFloat(*valueFloat, 'f', -1, 64), nil

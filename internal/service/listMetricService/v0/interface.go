@@ -1,7 +1,9 @@
 package v0
 
+import "context"
+
 type MetricRepository interface {
-	List() (items []MetricItem, err error)
+	List(ctx context.Context) (items []MetricItem, err error)
 }
 
 type MetricItem struct {
