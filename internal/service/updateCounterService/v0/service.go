@@ -17,7 +17,11 @@ func New(metricRepo MetricRepository) *Service {
 func (srv *Service) Do(
 	metricName string, metricValue int64,
 ) (err error) {
-	if ok := srv.metricRepository.Add(metricName, metricValue); !ok {
+	ok, err := srv.metricRepository.Add(metricName, metricValue)
+	if err != nil {
+		return pkg.ErrInternalServer.SetInfo(err.Error())
+	}
+	if !ok {
 		return pkg.ErrBadRequest
 	}
 
