@@ -1,6 +1,7 @@
 package v0
 
 import (
+	"context"
 	"strconv"
 
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
@@ -29,21 +30,21 @@ func New(
 }
 
 func (srv *Service) Do(
-	metricType, metricName, metricValue string,
+	ctx context.Context, metricType, metricName, metricValue string,
 ) (err error) {
 	switch metricType {
 	case pkg.MetricTypeCounter:
 		if valueInt, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
 			return errInvalidMetricValue
 		} else {
-			return srv.updateCounterService.Do(metricName, valueInt)
+			return srv.updateCounterService.Do(ctx, metricName, valueInt)
 		}
 
 	case pkg.MetricTypeGauge:
 		if valueFloat, err := strconv.ParseFloat(metricValue, 64); err != nil {
 			return errInvalidMetricValue
 		} else {
-			return srv.updateGaugeService.Do(metricName, valueFloat)
+			return srv.updateGaugeService.Do(ctx, metricName, valueFloat)
 		}
 
 	default:

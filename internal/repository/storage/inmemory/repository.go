@@ -1,6 +1,8 @@
 package inmemory
 
 import (
+	"context"
+
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 )
 
@@ -21,7 +23,7 @@ func New(encoder Encoder) *Repository {
 	}
 }
 
-func (r *Repository) Add(name string, value int64) (bool, error) {
+func (r *Repository) Add(ctx context.Context, name string, value int64) (bool, error) {
 	var zero int64
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, IntValue: &zero}
@@ -36,7 +38,7 @@ func (r *Repository) Add(name string, value int64) (bool, error) {
 	return true, nil
 }
 
-func (r *Repository) Update(name string, value float64) (bool, error) {
+func (r *Repository) Update(ctx context.Context, name string, value float64) (bool, error) {
 	var zero float64
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, FloatValue: &zero}
@@ -51,7 +53,7 @@ func (r *Repository) Update(name string, value float64) (bool, error) {
 	return true, nil
 }
 
-func (r *Repository) GetCounter(name string) (int64, bool, error) {
+func (r *Repository) GetCounter(ctx context.Context, name string) (int64, bool, error) {
 	item, ok := r.collection[name]
 	if !ok || !item.hasIntValue() {
 		return 0, false, nil
@@ -60,7 +62,7 @@ func (r *Repository) GetCounter(name string) (int64, bool, error) {
 	return *item.IntValue, true, nil
 }
 
-func (r *Repository) GetGauge(name string) (float64, bool, error) {
+func (r *Repository) GetGauge(ctx context.Context, name string) (float64, bool, error) {
 	item, ok := r.collection[name]
 	if !ok || !item.hasFloatValue() {
 		return 0., false, nil
@@ -69,7 +71,7 @@ func (r *Repository) GetGauge(name string) (float64, bool, error) {
 	return *item.FloatValue, true, nil
 }
 
-func (r *Repository) List() ([]listMetricService.MetricItem, error) {
+func (r *Repository) List(ctx context.Context) ([]listMetricService.MetricItem, error) {
 	res := make([]listMetricService.MetricItem, 0, len(r.collection))
 	for name, item := range r.collection {
 		var value any

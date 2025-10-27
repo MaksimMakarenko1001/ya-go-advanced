@@ -1,6 +1,8 @@
 package v0
 
 import (
+	"context"
+
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
@@ -26,7 +28,7 @@ func New(
 	}
 }
 
-func (srv *Service) Do(metricType, metricName string) (metric *models.Metrics, err error) {
+func (srv *Service) Do(ctx context.Context, metricType, metricName string) (metric *models.Metrics, err error) {
 	resp := models.Metrics{
 		ID:    metricName,
 		MType: metricType,
@@ -34,14 +36,14 @@ func (srv *Service) Do(metricType, metricName string) (metric *models.Metrics, e
 
 	switch metricType {
 	case pkg.MetricTypeCounter:
-		if valueInt, err := srv.getCounterService.Do(metricName); err != nil {
+		if valueInt, err := srv.getCounterService.Do(ctx, metricName); err != nil {
 			return nil, err
 		} else {
 			resp.Delta = valueInt
 		}
 
 	case pkg.MetricTypeGauge:
-		if valueFloat, err := srv.getGaugeService.Do(metricName); err != nil {
+		if valueFloat, err := srv.getGaugeService.Do(ctx, metricName); err != nil {
 			return nil, err
 		} else {
 			resp.Value = valueFloat
