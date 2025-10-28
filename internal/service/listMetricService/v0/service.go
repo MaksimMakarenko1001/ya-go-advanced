@@ -21,10 +21,12 @@ func New(metricRepo MetricRepository) *Service {
 }
 
 func (srv *Service) Do(ctx context.Context, html string) (index string, err error) {
-	list, err := srv.metricRepository.List(ctx)
+	resp, err := srv.metricRepository.List(ctx)
 	if err != nil {
 		return "", pkg.ErrInternalServer.SetInfo(err.Error())
 	}
+
+	list := resp.convertToModel()
 
 	slices.SortFunc(list, func(a, b MetricItem) int {
 		return strings.Compare(a.Name, b.Name)

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
@@ -62,10 +63,20 @@ func (m *MetricRepositoryMock) GetGauge(ctx context.Context, name string) (float
 	return 0., false, nil
 }
 
-func (m *MetricRepositoryMock) List(ctx context.Context) ([]listMetricService.MetricItem, error) {
-	return []listMetricService.MetricItem{
-		{Name: "gauge", Value: 99.99},
-		{Name: "counter", Value: 99},
+func (m *MetricRepositoryMock) List(ctx context.Context) (listMetricService.MetricData, error) {
+	return listMetricService.MetricData{
+		Counters: []entities.CounterItem{
+			{
+				MetricName:  "counter",
+				MetricValue: 99,
+			},
+		},
+		Gauges: []entities.GaugeItem{
+			{
+				MetricName:  "gauge",
+				MetricValue: 99.99,
+			},
+		},
 	}, nil
 }
 
