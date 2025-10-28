@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 )
 
@@ -71,25 +72,29 @@ func (r *Repository) GetGauge(ctx context.Context, name string) (float64, bool, 
 	return *item.FloatValue, true, nil
 }
 
-func (r *Repository) List(ctx context.Context) ([]listMetricService.MetricItem, error) {
-	res := make([]listMetricService.MetricItem, 0, len(r.collection))
+func (r *Repository) List(ctx context.Context) (listMetricService.MetricData, error) {
+	counters := make([]entities.CounterItem, 0, len(r.collection))
+	gauges := make([]entities.GaugeItem, 0, len(r.collection))
+
 	for name, item := range r.collection {
-		var value any
 		if item.hasIntValue() {
-			value = *item.IntValue
-		}
-		if item.hasFloatValue() {
-			value = *item.FloatValue
+			counters = append(counters, entities.CounterItem{
+				MetricName:  name,
+				MetricValue: *item.IntValue,
+			})
 		}
 
-		if value != nil {
-			res = append(res, listMetricService.MetricItem{
-				Name:  name,
-				Value: value,
+		if item.hasFloatValue() {
+			gauges = append(gauges, entities.GaugeItem{
+				MetricName:  name,
+				MetricValue: *item.FloatValue,
 			})
 		}
 	}
-	return res, nil
+	return listMetricService.MetricData{
+		Counters: counters,
+		Gauges:   gauges,
+	}, nil
 }
 
 func (r *Repository) Load(b []byte) error {
