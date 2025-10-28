@@ -1,12 +1,11 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
@@ -29,19 +28,21 @@ const html = `<html>
 </html>`
 
 type (
-	UpdateGaugeService   func(metricName string, metricValue float64) (err error)
-	UpdateCounterService func(metricName string, metricValue int64) (err error)
+	UpdateFlatService func(ctx context.Context, metricType, metricName, metricValue string) (err error)
+	UpdateService     func(ctx context.Context, metric models.Metrics) (err error)
 
-	GetGaugeService   func(metricName string) (metricValue *float64, err error)
-	GetCounterService func(metricName string) (metricValue *int64, err error)
+	GetGaugeService   func(ctx context.Context, metricName string) (metricValue *float64, err error)
+	GetCounterService func(ctx context.Context, metricName string) (metricValue *int64, err error)
+	GetFlatService    func(ctx context.Context, metricType, metricName string) (metricValue string, err error)
+	GetService        func(ctx context.Context, metricType, metricName string) (metric *models.Metrics, err error)
 
-	ListMetricService func(template string) (index string, err error)
+	ListMetricService func(ctx context.Context, template string) (index string, err error)
 )
 
 func DoListMetricResponse(srv ListMetricService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		index, err := srv(html)
+		index, err := srv(r.Context(), html)
 		if err != nil {
 			WriteError(w, err)
 			return
@@ -53,19 +54,9 @@ func DoListMetricResponse(srv ListMetricService) http.HandlerFunc {
 	}
 }
 
-func DoUpdateGaugeResponse(srv UpdateGaugeService) http.HandlerFunc {
+func DoUpdateFlatResponse(srv UpdateFlatService, metricType, metricName, metricValue string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
-
-		value, err := strconv.ParseFloat(parts[4], 64)
-		if err != nil {
-			http.Error(w, "invalid metric value", http.StatusBadRequest)
-			return
-		}
-
-		name := parts[3]
-
-		if err := srv(name, value); err != nil {
+		if err := srv(r.Context(), metricType, metricName, metricValue); err != nil {
 			WriteError(w, err)
 			return
 		}
@@ -74,129 +65,54 @@ func DoUpdateGaugeResponse(srv UpdateGaugeService) http.HandlerFunc {
 	}
 }
 
-func DoUpdateGaugeJSONResponse(srv UpdateGaugeService, rq models.Metrics) http.HandlerFunc {
+func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if rq.Value == nil {
-			http.Error(w, "invalid metric value", http.StatusBadRequest)
+		var metric models.Metrics
+
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := srv(rq.ID, *rq.Value); err != nil {
+		if err := srv(r.Context(), metric); err != nil {
 			WriteError(w, err)
 			return
 		}
 
-		resp, _ := json.Marshal(rq)
+		resp, _ := json.Marshal(metric)
 		WriteJSONResult(w, resp)
 	}
 }
 
-func DoGetGaugeResponse(srv GetGaugeService) http.HandlerFunc {
+func DoGetFlatResponse(srv GetFlatService, metricType, metricName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
-
-		name := parts[3]
-
-		value, err := srv(name)
+		value, err := srv(r.Context(), metricType, metricName)
 		if err != nil {
 			WriteError(w, err)
 			return
 		}
 
-		WriteResult(w, strconv.FormatFloat(*value, 'f', -1, 64))
+		WriteResult(w, value)
 	}
 }
 
-func DoGetGaugeJSONResponse(srv GetGaugeService, rq models.Metrics) http.HandlerFunc {
+func DoGetJSONResponse(srv GetService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		value, err := srv(rq.ID)
+		var request models.Metrics
+
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		metric, err := srv(r.Context(), request.MType, request.ID)
 		if err != nil {
 			WriteError(w, err)
 			return
 		}
 
-		resp, err := json.Marshal(models.Metrics{
-			ID:    rq.ID,
-			MType: rq.MType,
-			Value: value,
-		})
+		resp, err := json.Marshal(*metric)
 		if err != nil {
-			WriteError(w, fmt.Errorf("convert to gauge response not ok, %w", err))
-		}
-
-		WriteJSONResult(w, resp)
-	}
-}
-
-func DoUpdateCounterResponse(srv UpdateCounterService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
-
-		value, err := strconv.ParseInt(parts[4], 10, 64)
-		if err != nil {
-			http.Error(w, "invalid metric value", http.StatusBadRequest)
-			return
-		}
-
-		name := parts[3]
-
-		if err := srv(name, value); err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		WriteOK(w)
-	}
-}
-
-func DoUpdateCounterJSONResponse(srv UpdateCounterService, rq models.Metrics) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if rq.Delta == nil {
-			http.Error(w, "invalid metric value", http.StatusBadRequest)
-			return
-		}
-
-		if err := srv(rq.ID, *rq.Delta); err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		resp, _ := json.Marshal(rq)
-		WriteJSONResult(w, resp)
-	}
-}
-
-func DoGetCounterResponse(srv GetCounterService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.Split(r.URL.Path, "/")
-
-		name := parts[3]
-
-		value, err := srv(name)
-		if err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		WriteResult(w, strconv.FormatInt(*value, 10))
-	}
-}
-
-func DoGetCounterJSONResponse(srv GetCounterService, rq models.Metrics) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		value, err := srv(rq.ID)
-		if err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		resp, err := json.Marshal(models.Metrics{
-			ID:    rq.ID,
-			MType: rq.MType,
-			Delta: value,
-		})
-		if err != nil {
-			WriteError(w, fmt.Errorf("convert to counter response not ok, %w", err))
+			WriteError(w, fmt.Errorf("convert to get response not ok, %w", err))
 		}
 
 		WriteJSONResult(w, resp)

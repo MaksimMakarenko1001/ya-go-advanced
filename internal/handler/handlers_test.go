@@ -1,15 +1,19 @@
 package handler_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
+	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
+	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,35 +41,43 @@ const html = `<html>
 type MetricRepositoryMock struct {
 }
 
-func (m *MetricRepositoryMock) Add(name string, value int64) (ok bool) {
-	return name == "ok"
+func (m *MetricRepositoryMock) Add(ctx context.Context, name string, value int64) (ok bool, err error) {
+	return name == "ok", nil
 }
 
-func (m *MetricRepositoryMock) Update(name string, value float64) (ok bool) {
-	return name == "ok"
+func (m *MetricRepositoryMock) Update(ctx context.Context, name string, value float64) (ok bool, err error) {
+	return name == "ok", nil
 }
 
-func (m *MetricRepositoryMock) Get(name string) (any, bool) {
+func (m *MetricRepositoryMock) GetCounter(ctx context.Context, name string) (int64, bool, error) {
 	if name == "ok_counter" {
-		return int64(99), true
+		return 99, true, nil
 	}
-	if name == "ok_gauge" {
-		return float64(99.99), true
-	}
-	if name == "not_ok_counter" {
-		return 99.99, true
-	}
-	if name == "not_ok_gauge" {
-		return "99.99", true
-	}
-	return nil, false
+	return 0, false, nil
 }
 
-func (m *MetricRepositoryMock) List() []listMetricService.MetricItem {
-	return []listMetricService.MetricItem{
-		{Name: "gauge", Value: 99.99},
-		{Name: "counter", Value: 99},
+func (m *MetricRepositoryMock) GetGauge(ctx context.Context, name string) (float64, bool, error) {
+	if name == "ok_gauge" {
+		return 99.99, true, nil
 	}
+	return 0., false, nil
+}
+
+func (m *MetricRepositoryMock) List(ctx context.Context) (listMetricService.MetricData, error) {
+	return listMetricService.MetricData{
+		Counters: []entities.CounterItem{
+			{
+				MetricName:  "counter",
+				MetricValue: 99,
+			},
+		},
+		Gauges: []entities.GaugeItem{
+			{
+				MetricName:  "gauge",
+				MetricValue: 99.99,
+			},
+		},
+	}, nil
 }
 
 func TestDoListMetricResponse(t *testing.T) {
@@ -126,23 +138,19 @@ func TestDoGetCounterResponse(t *testing.T) {
 				body: "[NOT_FOUND] Not found (`not_found` not found)\n",
 			},
 		},
-		{
-			name:       "negative test [exists other type]",
-			metricName: "not_ok_counter",
-			expected: expected{
-				code: 400,
-				body: "[BAD_REQUEST] Bad request (`not_ok_counter` type mismatch)\n",
-			},
-		},
 	}
-	handler := handler.DoGetCounterResponse(getCounterService.New(&MetricRepositoryMock{}).Do)
+
+	service := getFlatService.New(
+		getCounterService.New(&MetricRepositoryMock{}),
+		nil,
+	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/value/counter/"+tt.metricName, nil)
 			w := httptest.NewRecorder()
 
-			handler.ServeHTTP(w, request)
+			handler.DoGetFlatResponse(service.Do, "counter", tt.metricName).ServeHTTP(w, request)
 
 			assert.Equal(t, tt.expected.code, w.Code)
 			if tt.expected.body != "" {
@@ -178,23 +186,19 @@ func TestDoGetGaugeResponse(t *testing.T) {
 				body: "[NOT_FOUND] Not found (`not_found` not found)\n",
 			},
 		},
-		{
-			name:       "negative test [exists other type]",
-			metricName: "not_ok_gauge",
-			expected: expected{
-				code: 400,
-				body: "[BAD_REQUEST] Bad request (`not_ok_gauge` type mismatch)\n",
-			},
-		},
 	}
-	handler := handler.DoGetGaugeResponse(getGaugeService.New(&MetricRepositoryMock{}).Do)
+
+	service := getFlatService.New(
+		nil,
+		getGaugeService.New(&MetricRepositoryMock{}),
+	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/value/gauge/"+tt.metricName, nil)
 			w := httptest.NewRecorder()
 
-			handler.ServeHTTP(w, request)
+			handler.DoGetFlatResponse(service.Do, "gauge", tt.metricName).ServeHTTP(w, request)
 
 			assert.Equal(t, tt.expected.code, w.Code)
 			if tt.expected.body != "" {
@@ -230,27 +234,22 @@ func TestDoUpdateCounterResponse(t *testing.T) {
 			metricValue: "99.99",
 			expected: expected{
 				code: 400,
-				body: "invalid metric value\n",
-			},
-		},
-		{
-			name:        "negative test [exists other type]",
-			metricName:  "not_ok",
-			metricValue: "100",
-			expected: expected{
-				code: 400,
-				body: "",
+				body: "[BAD_REQUEST] Bad request (invalid metric value)\n",
 			},
 		},
 	}
-	handler := handler.DoUpdateCounterResponse(updateCounterService.New(&MetricRepositoryMock{}).Do)
+
+	service := updateFlatService.New(
+		updateCounterService.New(&MetricRepositoryMock{}),
+		nil,
+	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/update/counter/"+tt.metricName+"/"+tt.metricValue, nil)
 			w := httptest.NewRecorder()
 
-			handler.ServeHTTP(w, request)
+			handler.DoUpdateFlatResponse(service.Do, "counter", tt.metricName, tt.metricValue).ServeHTTP(w, request)
 
 			assert.Equal(t, tt.expected.code, w.Code)
 			if tt.expected.body != "" {
@@ -286,27 +285,22 @@ func TestDoUpdateGaugeResponse(t *testing.T) {
 			metricValue: "99,99",
 			expected: expected{
 				code: 400,
-				body: "invalid metric value\n",
-			},
-		},
-		{
-			name:        "negative test [exists other type]",
-			metricName:  "not_ok",
-			metricValue: "100.000",
-			expected: expected{
-				code: 400,
-				body: "",
+				body: "[BAD_REQUEST] Bad request (invalid metric value)\n",
 			},
 		},
 	}
-	handler := handler.DoUpdateGaugeResponse(updateGaugeService.New(&MetricRepositoryMock{}).Do)
+
+	service := updateFlatService.New(
+		nil,
+		updateGaugeService.New(&MetricRepositoryMock{}),
+	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/update/gauge/"+tt.metricName+"/"+tt.metricValue, nil)
 			w := httptest.NewRecorder()
 
-			handler.ServeHTTP(w, request)
+			handler.DoUpdateFlatResponse(service.Do, "gauge", tt.metricName, tt.metricValue).ServeHTTP(w, request)
 
 			assert.Equal(t, tt.expected.code, w.Code)
 			if tt.expected.body != "" {

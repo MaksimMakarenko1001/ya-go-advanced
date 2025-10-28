@@ -1,5 +1,7 @@
 package v0
 
+import "context"
+
 type MetricRepository interface {
-	Get(name string) (value any, ok bool)
+	GetGauge(ctx context.Context, name string) (value float64, ok bool, err error)
 }

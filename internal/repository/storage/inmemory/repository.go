@@ -1,6 +1,9 @@
 package inmemory
 
 import (
+	"context"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 )
 
@@ -21,7 +24,7 @@ func New(encoder Encoder) *Repository {
 	}
 }
 
-func (r *Repository) Add(name string, value int64) bool {
+func (r *Repository) Add(ctx context.Context, name string, value int64) (bool, error) {
 	var zero int64
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, IntValue: &zero}
@@ -29,14 +32,14 @@ func (r *Repository) Add(name string, value int64) bool {
 
 	item := r.collection[name]
 	if !item.hasIntValue() {
-		return false
+		return false, nil
 	}
 
 	r.collection[name].add(value)
-	return true
+	return true, nil
 }
 
-func (r *Repository) Update(name string, value float64) bool {
+func (r *Repository) Update(ctx context.Context, name string, value float64) (bool, error) {
 	var zero float64
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, FloatValue: &zero}
@@ -44,47 +47,54 @@ func (r *Repository) Update(name string, value float64) bool {
 
 	item := r.collection[name]
 	if !item.hasFloatValue() {
-		return false
+		return false, nil
 	}
 
 	r.collection[name].update(value)
-	return true
+	return true, nil
 }
 
-func (r *Repository) Get(name string) (any, bool) {
-	var value any
-
-	if item, ok := r.collection[name]; ok {
-		if item.hasIntValue() {
-			value = *item.IntValue
-		}
-		if item.hasFloatValue() {
-			value = *item.FloatValue
-		}
+func (r *Repository) GetCounter(ctx context.Context, name string) (int64, bool, error) {
+	item, ok := r.collection[name]
+	if !ok || !item.hasIntValue() {
+		return 0, false, nil
 	}
 
-	return value, value != nil
+	return *item.IntValue, true, nil
 }
 
-func (r *Repository) List() []listMetricService.MetricItem {
-	res := make([]listMetricService.MetricItem, 0, len(r.collection))
+func (r *Repository) GetGauge(ctx context.Context, name string) (float64, bool, error) {
+	item, ok := r.collection[name]
+	if !ok || !item.hasFloatValue() {
+		return 0., false, nil
+	}
+
+	return *item.FloatValue, true, nil
+}
+
+func (r *Repository) List(ctx context.Context) (listMetricService.MetricData, error) {
+	counters := make([]entities.CounterItem, 0, len(r.collection))
+	gauges := make([]entities.GaugeItem, 0, len(r.collection))
+
 	for name, item := range r.collection {
-		var value any
 		if item.hasIntValue() {
-			value = *item.IntValue
-		}
-		if item.hasFloatValue() {
-			value = *item.FloatValue
+			counters = append(counters, entities.CounterItem{
+				MetricName:  name,
+				MetricValue: *item.IntValue,
+			})
 		}
 
-		if value != nil {
-			res = append(res, listMetricService.MetricItem{
-				Name:  name,
-				Value: value,
+		if item.hasFloatValue() {
+			gauges = append(gauges, entities.GaugeItem{
+				MetricName:  name,
+				MetricValue: *item.FloatValue,
 			})
 		}
 	}
-	return res
+	return listMetricService.MetricData{
+		Counters: counters,
+		Gauges:   gauges,
+	}, nil
 }
 
 func (r *Repository) Load(b []byte) error {

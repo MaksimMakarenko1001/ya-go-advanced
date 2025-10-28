@@ -2,9 +2,12 @@ package v0
 
 import (
 	"bytes"
+	"context"
 	"html/template"
 	"slices"
 	"strings"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
 
 type Service struct {
@@ -17,8 +20,13 @@ func New(metricRepo MetricRepository) *Service {
 	}
 }
 
-func (srv *Service) Do(html string) (index string, err error) {
-	list := srv.metricRepository.List()
+func (srv *Service) Do(ctx context.Context, html string) (index string, err error) {
+	resp, err := srv.metricRepository.List(ctx)
+	if err != nil {
+		return "", pkg.ErrInternalServer.SetInfo(err.Error())
+	}
+
+	list := resp.convertToModel()
 
 	slices.SortFunc(list, func(a, b MetricItem) int {
 		return strings.Compare(a.Name, b.Name)

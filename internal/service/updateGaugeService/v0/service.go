@@ -1,6 +1,8 @@
 package v0
 
 import (
+	"context"
+
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
 
@@ -15,9 +17,13 @@ func New(metricRepo MetricRepository) *Service {
 }
 
 func (srv *Service) Do(
-	metricName string, metricValue float64,
+	ctx context.Context, metricName string, metricValue float64,
 ) (err error) {
-	if ok := srv.metricRepository.Update(metricName, metricValue); !ok {
+	ok, err := srv.metricRepository.Update(ctx, metricName, metricValue)
+	if err != nil {
+		return pkg.ErrInternalServer.SetInfo(err.Error())
+	}
+	if !ok {
 		return pkg.ErrBadRequest
 	}
 

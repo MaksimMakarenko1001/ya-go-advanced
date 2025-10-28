@@ -1,5 +1,7 @@
 package v0
 
+import "context"
+
 type MetricRepository interface {
-	Update(name string, value float64) (ok bool)
+	Update(ctx context.Context, name string, value float64) (ok bool, err error)
 }
