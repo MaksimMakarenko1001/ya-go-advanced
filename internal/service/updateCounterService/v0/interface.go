@@ -1,7 +1,11 @@
 package v0
 
-import "context"
+import (
+	"context"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
+)
 
 type MetricRepository interface {
-	Add(ctx context.Context, name string, value int64) (ok bool, err error)
+	Add(ctx context.Context, item entities.CounterItem) (ok bool, err error)
 }

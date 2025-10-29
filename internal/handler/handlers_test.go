@@ -41,12 +41,12 @@ const html = `<html>
 type MetricRepositoryMock struct {
 }
 
-func (m *MetricRepositoryMock) Add(ctx context.Context, name string, value int64) (ok bool, err error) {
-	return name == "ok", nil
+func (m *MetricRepositoryMock) Add(ctx context.Context, item entities.CounterItem) (ok bool, err error) {
+	return item.MetricName == "ok", nil
 }
 
-func (m *MetricRepositoryMock) Update(ctx context.Context, name string, value float64) (ok bool, err error) {
-	return name == "ok", nil
+func (m *MetricRepositoryMock) Update(ctx context.Context, item entities.GaugeItem) (ok bool, err error) {
+	return item.MetricName == "ok", nil
 }
 
 func (m *MetricRepositoryMock) GetCounter(ctx context.Context, name string) (int64, bool, error) {
