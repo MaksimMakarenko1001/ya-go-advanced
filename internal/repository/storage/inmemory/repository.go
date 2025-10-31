@@ -58,22 +58,28 @@ func (r *Repository) Update(ctx context.Context, item entities.GaugeItem) (bool,
 	return true, nil
 }
 
-func (r *Repository) GetCounter(ctx context.Context, name string) (int64, bool, error) {
+func (r *Repository) GetCounter(ctx context.Context, name string) (*entities.CounterItem, bool, error) {
 	item, ok := r.collection[name]
 	if !ok || !item.hasIntValue() {
-		return 0, false, nil
+		return nil, false, nil
 	}
 
-	return *item.IntValue, true, nil
+	return &entities.CounterItem{
+		MetricName:  item.Name,
+		MetricValue: *item.IntValue,
+	}, true, nil
 }
 
-func (r *Repository) GetGauge(ctx context.Context, name string) (float64, bool, error) {
+func (r *Repository) GetGauge(ctx context.Context, name string) (*entities.GaugeItem, bool, error) {
 	item, ok := r.collection[name]
 	if !ok || !item.hasFloatValue() {
-		return 0., false, nil
+		return nil, false, nil
 	}
 
-	return *item.FloatValue, true, nil
+	return &entities.GaugeItem{
+		MetricName:  item.Name,
+		MetricValue: *item.FloatValue,
+	}, true, nil
 }
 
 func (r *Repository) List(ctx context.Context) (listMetricService.MetricData, error) {
