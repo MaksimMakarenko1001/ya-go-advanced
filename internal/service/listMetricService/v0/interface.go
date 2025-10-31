@@ -1,10 +1,9 @@
 package v0
 
-type MetricRepository interface {
-	List() (items []MetricItem)
-}
+import (
+	"context"
+)
 
-type MetricItem struct {
-	Name  string `json:"name"`
-	Value any    `json:"value"`
+type MetricRepository interface {
+	List(ctx context.Context) (resp MetricData, err error)
 }
