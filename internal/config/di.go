@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"sync"
@@ -12,6 +11,7 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/encode"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/storage/inmemory"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/storage/pg"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
@@ -27,8 +27,9 @@ import (
 type DI struct {
 	config       *diConfig
 	repositories struct {
-		metricStorage *inmemory.Repository
-		encoder       *encode.JSONEncode
+		encoder         *encode.JSONEncode
+		inmemoryStorage *inmemory.Repository
+		pgStorage       *pg.Repository
 	}
 	services struct {
 		included struct {
@@ -60,35 +61,32 @@ func (di *DI) Init(envPrefix string) {
 	di.config = &diConfig{}
 	di.config.loadConfig(envPrefix)
 
-	di.initDB(context.Background())
+	di.initDB()
 	di.initRepositories()
 	di.initServices()
 	di.initAPI()
 }
 
-func (di *DI) initDB(ctx context.Context) {
+func (di *DI) initDB() {
 	var err error
-
-	initCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
-
-	di.infr.db, err = db.New(initCtx, di.config.Database)
+	di.infr.db, err = db.New(di.config.Database)
 	if err != nil {
-		log.Printf("init db: %s", err.Error())
+		log.Println("db init not ok,", err.Error())
 	}
 }
 
 func (di *DI) initRepositories() {
 	di.repositories.encoder = encode.New()
-	di.repositories.metricStorage = inmemory.New(di.repositories.encoder)
+	di.repositories.inmemoryStorage = inmemory.New(di.repositories.encoder)
+	di.repositories.pgStorage = pg.New(di.infr.db, di.repositories.inmemoryStorage)
 }
 
 func (di *DI) initServices() {
-	di.services.included.updateCounterService = updateCounterService.New(di.repositories.metricStorage)
-	di.services.included.updateGaugeService = updateGaugeService.New(di.repositories.metricStorage)
+	di.services.included.updateCounterService = updateCounterService.New(di.repositories.pgStorage)
+	di.services.included.updateGaugeService = updateGaugeService.New(di.repositories.pgStorage)
 
-	di.services.included.getCounterService = getCounterService.New(di.repositories.metricStorage)
-	di.services.included.getGaugeService = getGaugeService.New(di.repositories.metricStorage)
+	di.services.included.getCounterService = getCounterService.New(di.repositories.pgStorage)
+	di.services.included.getGaugeService = getGaugeService.New(di.repositories.pgStorage)
 
 	di.services.updateFlatService = updateFlatService.New(di.services.included.updateCounterService,
 		di.services.included.updateGaugeService)
@@ -100,9 +98,9 @@ func (di *DI) initServices() {
 	di.services.getService = getService.New(di.services.included.getCounterService,
 		di.services.included.getGaugeService)
 
-	di.services.listMetricService = listMetricService.New(di.repositories.metricStorage)
+	di.services.listMetricService = listMetricService.New(di.repositories.pgStorage)
 
-	di.services.dumpMetricService = dumpMetricService.New(di.config.FileStoragePath, di.repositories.metricStorage)
+	di.services.dumpMetricService = dumpMetricService.New(di.config.FileStoragePath, di.repositories.inmemoryStorage)
 }
 
 func (di *DI) initAPI() {

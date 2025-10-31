@@ -20,7 +20,7 @@ func (srv *Service) Do(
 	ctx context.Context,
 	metricName string,
 ) (*float64, error) {
-	value, ok, err := srv.metricRepository.GetGauge(ctx, metricName)
+	item, ok, err := srv.metricRepository.GetGauge(ctx, metricName)
 	if err != nil {
 		return nil, pkg.ErrInternalServer.SetInfo(err.Error())
 	}
@@ -28,5 +28,5 @@ func (srv *Service) Do(
 		return nil, pkg.ErrNotFound.SetInfof("`%s` not found", metricName)
 	}
 
-	return &value, nil
+	return &item.MetricValue, nil
 }

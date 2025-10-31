@@ -24,52 +24,62 @@ func New(encoder Encoder) *Repository {
 	}
 }
 
-func (r *Repository) Add(ctx context.Context, name string, value int64) (bool, error) {
+func (r *Repository) Add(ctx context.Context, item entities.CounterItem) (bool, error) {
 	var zero int64
+
+	name := item.MetricName
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, IntValue: &zero}
 	}
 
-	item := r.collection[name]
-	if !item.hasIntValue() {
+	x := r.collection[name]
+	if !x.hasIntValue() {
 		return false, nil
 	}
 
-	r.collection[name].add(value)
+	r.collection[name].add(item.MetricValue)
 	return true, nil
 }
 
-func (r *Repository) Update(ctx context.Context, name string, value float64) (bool, error) {
+func (r *Repository) Update(ctx context.Context, item entities.GaugeItem) (bool, error) {
 	var zero float64
+
+	name := item.MetricName
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, FloatValue: &zero}
 	}
 
-	item := r.collection[name]
-	if !item.hasFloatValue() {
+	x := r.collection[name]
+	if !x.hasFloatValue() {
 		return false, nil
 	}
 
-	r.collection[name].update(value)
+	r.collection[name].update(item.MetricValue)
 	return true, nil
 }
 
-func (r *Repository) GetCounter(ctx context.Context, name string) (int64, bool, error) {
+func (r *Repository) GetCounter(ctx context.Context, name string) (*entities.CounterItem, bool, error) {
 	item, ok := r.collection[name]
 	if !ok || !item.hasIntValue() {
-		return 0, false, nil
+		return nil, false, nil
 	}
 
-	return *item.IntValue, true, nil
+	return &entities.CounterItem{
+		MetricName:  item.Name,
+		MetricValue: *item.IntValue,
+	}, true, nil
 }
 
-func (r *Repository) GetGauge(ctx context.Context, name string) (float64, bool, error) {
+func (r *Repository) GetGauge(ctx context.Context, name string) (*entities.GaugeItem, bool, error) {
 	item, ok := r.collection[name]
 	if !ok || !item.hasFloatValue() {
-		return 0., false, nil
+		return nil, false, nil
 	}
 
-	return *item.FloatValue, true, nil
+	return &entities.GaugeItem{
+		MetricName:  item.Name,
+		MetricValue: *item.FloatValue,
+	}, true, nil
 }
 
 func (r *Repository) List(ctx context.Context) (listMetricService.MetricData, error) {

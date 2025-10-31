@@ -41,26 +41,32 @@ const html = `<html>
 type MetricRepositoryMock struct {
 }
 
-func (m *MetricRepositoryMock) Add(ctx context.Context, name string, value int64) (ok bool, err error) {
-	return name == "ok", nil
+func (m *MetricRepositoryMock) Add(ctx context.Context, item entities.CounterItem) (ok bool, err error) {
+	return item.MetricName == "ok", nil
 }
 
-func (m *MetricRepositoryMock) Update(ctx context.Context, name string, value float64) (ok bool, err error) {
-	return name == "ok", nil
+func (m *MetricRepositoryMock) Update(ctx context.Context, item entities.GaugeItem) (ok bool, err error) {
+	return item.MetricName == "ok", nil
 }
 
-func (m *MetricRepositoryMock) GetCounter(ctx context.Context, name string) (int64, bool, error) {
+func (m *MetricRepositoryMock) GetCounter(ctx context.Context, name string) (*entities.CounterItem, bool, error) {
 	if name == "ok_counter" {
-		return 99, true, nil
+		return &entities.CounterItem{
+			MetricName:  name,
+			MetricValue: 99,
+		}, true, nil
 	}
-	return 0, false, nil
+	return nil, false, nil
 }
 
-func (m *MetricRepositoryMock) GetGauge(ctx context.Context, name string) (float64, bool, error) {
+func (m *MetricRepositoryMock) GetGauge(ctx context.Context, name string) (*entities.GaugeItem, bool, error) {
 	if name == "ok_gauge" {
-		return 99.99, true, nil
+		return &entities.GaugeItem{
+			MetricName:  name,
+			MetricValue: 99.99,
+		}, true, nil
 	}
-	return 0., false, nil
+	return nil, false, nil
 }
 
 func (m *MetricRepositoryMock) List(ctx context.Context) (listMetricService.MetricData, error) {
