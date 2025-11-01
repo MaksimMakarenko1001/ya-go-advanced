@@ -31,47 +31,44 @@ func (srv *Service) Do(ctx context.Context, metrics []models.Metrics) (err error
 		return nil
 	}
 
-	unique := make(map[string]models.Metrics, len(metrics))
-	for _, metric := range metrics {
-		unique[metric.ID] = metric
-	}
-
 	ts := time.Now()
-	counters := make([]entities.CounterItem, 0, len(metrics))
-	gauges := make([]entities.GaugeItem, 0, len(metrics))
+	counters := make(map[string]entities.CounterItem, len(metrics))
+	gauges := make(map[string]entities.GaugeItem, len(metrics))
 
-	for _, metric := range unique {
+	for _, metric := range metrics {
 		switch metric.MType {
 		case pkg.MetricTypeCounter:
 			if metric.Delta == nil {
 				return errInvalidMetricValue
 			}
-			counters = append(counters, entities.CounterItem{
+
+			delta := *metric.Delta + counters[metric.ID].MetricValue
+			counters[metric.ID] = entities.CounterItem{
 				MetricType:  metric.MType,
 				MetricName:  metric.ID,
-				MetricValue: *metric.Delta,
+				MetricValue: delta,
 				CreatedAt:   ts,
 				UpdatedAt:   ts,
-			})
+			}
 
 		case pkg.MetricTypeGauge:
 			if metric.Value == nil {
 				return errInvalidMetricValue
 			}
-			gauges = append(gauges, entities.GaugeItem{
+			gauges[metric.ID] = entities.GaugeItem{
 				MetricType:  metric.MType,
 				MetricName:  metric.ID,
 				MetricValue: *metric.Value,
 				CreatedAt:   ts,
 				UpdatedAt:   ts,
-			})
+			}
 
 		default:
 			return errInvalidMetricType
 		}
 	}
 
-	ok, err := srv.metricRepository.AddUpdateBatch(ctx, counters, gauges)
+	ok, err := srv.metricRepository.AddUpdateBatch(ctx, pkg.ValuesToList(counters), pkg.ValuesToList(gauges))
 	if err != nil {
 		return pkg.ErrInternalServer.SetInfo(err.Error())
 	}
