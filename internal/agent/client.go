@@ -22,6 +22,7 @@ type Client struct {
 	host       string
 	memStats   runtime.MemStats
 	pollCount  int64
+	batchSize  int
 }
 
 func NewClient(cfg HTTPClientConfig) *Client {
@@ -29,8 +30,43 @@ func NewClient(cfg HTTPClientConfig) *Client {
 
 	return &Client{
 		host:       cfg.Address,
+		batchSize:  cfg.BatchSize,
 		httpClient: httpClient,
 	}
+}
+
+func (c *Client) sendMetricBatchJSON(batch []models.Metrics) (err error) {
+	if len(batch) == 0 {
+		return nil
+	}
+
+	u := url.URL{
+		Scheme: "http",
+		Host:   c.host,
+		Path:   "/updates/",
+	}
+
+	var buf bytes.Buffer
+	err = json.NewEncoder(&buf).Encode(batch)
+	if err != nil {
+		return fmt.Errorf("batch encoder not ok, %w", err)
+	}
+
+	r, err := newGZipRequest(http.MethodPost, u.String(), buf.Bytes())
+	if err != nil {
+		return fmt.Errorf("batch request not ok, %w", err)
+	}
+
+	status, err := c.send(r)
+	if err != nil {
+		return fmt.Errorf("batch http not ok, %w", err)
+	}
+
+	if status != http.StatusOK {
+		return fmt.Errorf("batch response status not ok, %s: %d", buf.String(), status)
+	}
+
+	return nil
 }
 
 func (c *Client) sendGaugeMetric(metricName string, value float64) (err error) {
@@ -149,6 +185,29 @@ func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err erro
 	return nil
 }
 
+func (c *Client) collectMetrics() []models.Metrics {
+	counters := c.collectCounterMetrics()
+	gauges := c.collectGaugeMetrics()
+
+	metrics := make([]models.Metrics, 0, len(counters)+len(gauges))
+	for k, v := range counters {
+		metrics = append(metrics, models.Metrics{
+			ID:    k,
+			MType: pkg.MetricTypeCounter,
+			Delta: &v,
+		})
+	}
+	for k, v := range gauges {
+		metrics = append(metrics, models.Metrics{
+			ID:    k,
+			MType: pkg.MetricTypeGauge,
+			Value: &v,
+		})
+	}
+
+	return metrics
+}
+
 func (c *Client) collectCounterMetrics() map[string]int64 {
 	c.pollCount += 1
 	return map[string]int64{
@@ -197,31 +256,30 @@ func (c *Client) Start(pollInterval time.Duration, reportInterval time.Duration)
 	defer ticker.Stop()
 	defer reportTicker.Stop()
 
-	var gaugeMetrics map[string]float64
-	var counterMetrics map[string]int64
-	var err error
+	var metrics []models.Metrics
 
 	for {
 		select {
 		case <-ticker.C:
 			log.Println("Collecting metrics")
-			gaugeMetrics = c.collectGaugeMetrics()
-			counterMetrics = c.collectCounterMetrics()
+			metrics = c.collectMetrics()
 
 		case <-reportTicker.C:
 			log.Println("Reporting metrics")
-			// TODO implement fan-out technique
-			for name, value := range gaugeMetrics {
-				err = c.sendGaugeMetricJSON(name, value)
-				if err != nil {
-					log.Println(err.Error())
+
+			batch := make([]models.Metrics, 0, c.batchSize)
+			for _, metric := range metrics {
+				batch = append(batch, metric)
+
+				if len(batch) == c.batchSize {
+					if err := c.sendMetricBatchJSON(batch); err != nil {
+						log.Println(err.Error())
+					}
+					batch = batch[:0]
 				}
 			}
-			for name, value := range counterMetrics {
-				err = c.sendCounterMetricJSON(name, value)
-				if err != nil {
-					log.Println(err.Error())
-				}
+			if err := c.sendMetricBatchJSON(batch); err != nil {
+				log.Println(err.Error())
 			}
 		}
 	}
