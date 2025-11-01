@@ -18,6 +18,7 @@ import (
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	getService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
+	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateBatchService/v0"
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
@@ -39,8 +40,9 @@ type DI struct {
 			getCounterService *getCounterService.Service
 			getGaugeService   *getGaugeService.Service
 		}
-		updateFlatService *updateFlatService.Service
-		updateService     *updateService.Service
+		updateFlatService  *updateFlatService.Service
+		updateBatchService *updateBatchService.Service
+		updateService      *updateService.Service
 
 		getFlatService *getFlatService.Service
 		getService     *getService.Service
@@ -90,6 +92,7 @@ func (di *DI) initServices() {
 
 	di.services.updateFlatService = updateFlatService.New(di.services.included.updateCounterService,
 		di.services.included.updateGaugeService)
+	di.services.updateBatchService = updateBatchService.New(di.repositories.pgStorage)
 	di.services.updateService = updateService.New(di.services.included.updateCounterService,
 		di.services.included.updateGaugeService)
 
@@ -107,6 +110,7 @@ func (di *DI) initAPI() {
 	di.api.external = handler.New(
 		logger.New(di.config.Logger),
 		di.services.updateFlatService,
+		di.services.updateBatchService,
 		di.services.updateService,
 		di.services.getFlatService,
 		di.services.getService,
@@ -151,10 +155,13 @@ func (di *DI) Start() error {
 
 	di.api.external.HandlePing(di.infr.db)
 	di.api.external.HandleIndex()
-	di.api.external.HandleUpdate()
-	di.api.external.HandleUpdateJSON(di.config.StoreInterval == 0)
 	di.api.external.HandleGet()
 	di.api.external.HandleGetJSON()
+
+	withSync := di.config.StoreInterval == 0
+	di.api.external.HandleUpdate()
+	di.api.external.HandleUpdateJSON(withSync)
+	di.api.external.HandleUpdateBatchJSON(withSync)
 
 	err := http.ListenAndServe(config.Address, handler.Conveyor(
 		di.api.external,

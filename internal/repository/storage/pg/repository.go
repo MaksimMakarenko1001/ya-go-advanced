@@ -25,6 +25,25 @@ func New(conn *db.PGConnect, inmemory *inmemory.Repository) *Repository {
 	}
 }
 
+func (r *Repository) AddUpdateBatch(ctx context.Context, counters []entities.CounterItem, gauges []entities.GaugeItem) (ok bool, err error) {
+	if !r.isAlive {
+		return r.inmemory.AddUpdateBatch(ctx, counters, gauges)
+	}
+
+	var updatedNames []string
+	count := len(counters) + len(gauges)
+
+	err = r.conn.QueryWithOneResultJSON(
+		ctx,
+		&updatedNames,
+		"select metric.upsert_metrics(_counter_items => $1, _gauge_items => $2)",
+		counters,
+		gauges,
+	)
+
+	return len(updatedNames) == count, err
+}
+
 func (r *Repository) Add(ctx context.Context, item entities.CounterItem) (ok bool, err error) {
 	if !r.isAlive {
 		return r.inmemory.Add(ctx, item)

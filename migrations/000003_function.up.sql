@@ -39,7 +39,7 @@ begin
     select json_agg(cte.*) from cte
 	    into _res;
 
-    return _res;
+    return coalesce(_res, '[]'::json);
 end;
 $function$
 ;
@@ -59,7 +59,7 @@ begin
     select json_agg(cte.*) from cte
 	    into _res;
 
-    return _res;
+    return coalesce(_res, '[]'::json);
 end;
 $function$
 ;

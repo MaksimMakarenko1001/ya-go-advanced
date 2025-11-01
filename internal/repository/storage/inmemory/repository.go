@@ -24,6 +24,43 @@ func New(encoder Encoder) *Repository {
 	}
 }
 
+func (r *Repository) AddUpdateBatch(ctx context.Context, counters []entities.CounterItem, gauges []entities.GaugeItem) (ok bool, err error) {
+	var intZero int64
+	for _, counter := range counters {
+		name := counter.MetricName
+		if _, ok := r.collection[name]; !ok {
+			r.collection[name] = &Item{Name: name, IntValue: &intZero}
+		}
+
+		x := r.collection[name]
+		if !x.hasIntValue() {
+			return false, nil
+		}
+	}
+
+	var floatZero float64
+	for _, gauge := range gauges {
+		name := gauge.MetricName
+		if _, ok := r.collection[name]; !ok {
+			r.collection[name] = &Item{Name: name, FloatValue: &floatZero}
+		}
+
+		x := r.collection[name]
+		if !x.hasFloatValue() {
+			return false, nil
+		}
+	}
+
+	for _, counter := range counters {
+		r.collection[counter.MetricName].add(counter.MetricValue)
+	}
+	for _, gauge := range gauges {
+		r.collection[gauge.MetricName].update(gauge.MetricValue)
+	}
+
+	return true, nil
+}
+
 func (r *Repository) Add(ctx context.Context, item entities.CounterItem) (bool, error) {
 	var zero int64
 

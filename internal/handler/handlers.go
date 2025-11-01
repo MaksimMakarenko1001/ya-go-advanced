@@ -28,8 +28,9 @@ const html = `<html>
 </html>`
 
 type (
-	UpdateFlatService func(ctx context.Context, metricType, metricName, metricValue string) (err error)
-	UpdateService     func(ctx context.Context, metric models.Metrics) (err error)
+	UpdateFlatService  func(ctx context.Context, metricType, metricName, metricValue string) (err error)
+	UpdateBatchService func(ctx context.Context, metrics []models.Metrics) (err error)
+	UpdateService      func(ctx context.Context, metric models.Metrics) (err error)
 
 	GetGaugeService   func(ctx context.Context, metricName string) (metricValue *float64, err error)
 	GetCounterService func(ctx context.Context, metricName string) (metricValue *int64, err error)
@@ -80,6 +81,25 @@ func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 		}
 
 		resp, _ := json.Marshal(metric)
+		WriteJSONResult(w, resp)
+	}
+}
+
+func DoUpdateBatchJSONResponse(srv UpdateBatchService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var metrics []models.Metrics
+
+		if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := srv(r.Context(), metrics); err != nil {
+			WriteError(w, err)
+			return
+		}
+
+		resp, _ := json.Marshal(metrics)
 		WriteJSONResult(w, resp)
 	}
 }
