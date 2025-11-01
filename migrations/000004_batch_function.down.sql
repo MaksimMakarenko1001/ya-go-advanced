@@ -1,0 +1,1 @@
+DROP FUNCTION metric.upsert_metrics(json, json);

@@ -13,6 +13,7 @@ import (
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
 	getService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
+	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateBatchService/v0"
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
 	updateService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateService/v0"
 )
@@ -27,8 +28,9 @@ type API struct {
 	router *chi.Mux
 	logger logger.HTTPLogger
 
-	updateFlatService *updateFlatService.Service
-	updateService     *updateService.Service
+	updateFlatService  *updateFlatService.Service
+	updateBatchService *updateBatchService.Service
+	updateService      *updateService.Service
 
 	getFlatService *getFlatService.Service
 	getService     *getService.Service
@@ -41,6 +43,7 @@ type API struct {
 func New(
 	logger logger.HTTPLogger,
 	updateFlatService *updateFlatService.Service,
+	updateBatchService *updateBatchService.Service,
 	updateService *updateService.Service,
 	getFlatService *getFlatService.Service,
 	getService *getService.Service,
@@ -48,14 +51,15 @@ func New(
 	dumpMetricService *dumpMetricService.Service,
 ) *API {
 	return &API{
-		router:            chi.NewRouter(),
-		logger:            logger,
-		updateFlatService: updateFlatService,
-		updateService:     updateService,
-		getFlatService:    getFlatService,
-		getService:        getService,
-		listMetricService: listMetricService,
-		dumpMetricService: dumpMetricService,
+		router:             chi.NewRouter(),
+		logger:             logger,
+		updateFlatService:  updateFlatService,
+		updateBatchService: updateBatchService,
+		updateService:      updateService,
+		getFlatService:     getFlatService,
+		getService:         getService,
+		listMetricService:  listMetricService,
+		dumpMetricService:  dumpMetricService,
 	}
 }
 
@@ -96,6 +100,17 @@ func (api API) HandleUpdate() {
 func (api API) HandleUpdateJSON(withSync bool) {
 	api.router.Post("/update/", func(w http.ResponseWriter, r *http.Request) {
 		var handler http.Handler = DoUpdateJSONResponse(api.updateService.Do)
+
+		if withSync {
+			handler = api.WithSync(handler)
+		}
+		handler.ServeHTTP(w, r)
+	})
+}
+
+func (api API) HandleUpdateBatchJSON(withSync bool) {
+	api.router.Post("/updates/", func(w http.ResponseWriter, r *http.Request) {
+		var handler http.Handler = DoUpdateBatchJSONResponse(api.updateBatchService.Do)
 
 		if withSync {
 			handler = api.WithSync(handler)
