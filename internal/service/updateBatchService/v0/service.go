@@ -31,17 +31,16 @@ func (srv *Service) Do(ctx context.Context, metrics []models.Metrics) (err error
 		return nil
 	}
 
+	unique := make(map[string]models.Metrics, len(metrics))
+	for _, metric := range metrics {
+		unique[metric.ID] = metric
+	}
+
 	ts := time.Now()
-	seen := make(map[string]struct{}, len(metrics))
 	counters := make([]entities.CounterItem, 0, len(metrics))
 	gauges := make([]entities.GaugeItem, 0, len(metrics))
 
-	for _, metric := range metrics {
-		if _, ok := seen[metric.ID]; ok {
-			continue
-		}
-		seen[metric.ID] = struct{}{}
-
+	for _, metric := range unique {
 		switch metric.MType {
 		case pkg.MetricTypeCounter:
 			if metric.Delta == nil {
