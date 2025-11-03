@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -164,8 +165,9 @@ func WriteError(w http.ResponseWriter, err error) {
 		err = pkg.ErrInternalServer
 	}
 
-	errE, ok := err.(*pkg.Error)
-	if !ok {
+	var errE *pkg.Error
+
+	if !errors.As(err, &errE) {
 		errE = pkg.ErrInternalServer
 	}
 	http.Error(w, errE.Error(), errE.HTTPStatus())
