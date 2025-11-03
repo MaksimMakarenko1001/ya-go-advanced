@@ -6,6 +6,7 @@ require (
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/golang-migrate/migrate/v4 v4.19.0
+	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0

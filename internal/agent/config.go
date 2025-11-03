@@ -47,6 +47,7 @@ func (cfg *Config) loadFromEnv(envPrefix string) {
 	}
 
 	cfg.HTTP.BatchSize = config.HTTP.BatchSize
+	cfg.HTTP.MaxRetries = config.HTTP.MaxRetries
 
 	if address := config.HTTP.Address; address != "" {
 		cfg.HTTP.Address = address
@@ -78,7 +79,8 @@ func (cfg *Config) loadFromEnvPassTests() {
 }
 
 type HTTPClientConfig struct {
-	Address   string        `env:"ADDRESS"`
-	Timeout   time.Duration `env:"TIMEOUT" envDefault:"10s"`
-	BatchSize int           `env:"BATCH_SIZE" envDefault:"3"`
+	Address    string        `env:"ADDRESS"`
+	Timeout    time.Duration `env:"TIMEOUT" envDefault:"10s"`
+	BatchSize  int           `env:"BATCH_SIZE" envDefault:"3"`
+	MaxRetries uint16        `env:"MAX_RETRIES" envDefault:"3"`
 }

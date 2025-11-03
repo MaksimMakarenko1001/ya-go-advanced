@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg/backoff"
 )
 
 type Client struct {
@@ -23,15 +25,20 @@ type Client struct {
 	memStats   runtime.MemStats
 	pollCount  int64
 	batchSize  int
+	backoff    *backoff.Backoff
 }
 
 func NewClient(cfg HTTPClientConfig) *Client {
 	httpClient := &http.Client{Timeout: cfg.Timeout}
 
 	return &Client{
+		httpClient: httpClient,
 		host:       cfg.Address,
 		batchSize:  cfg.BatchSize,
-		httpClient: httpClient,
+		backoff: backoff.NewBackoff(
+			cfg.MaxRetries,
+			ClassifyHTTPError,
+		),
 	}
 }
 
@@ -291,7 +298,16 @@ func (c *Client) send(r *http.Request) (int, error) {
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
 
-	resp, err := c.httpClient.Do(r)
+	var resp *http.Response
+	backoff := c.backoff.WithLinear(time.Second, time.Second*2)
+
+	fn := func(ctx context.Context) error {
+		var httpErr error
+		resp, httpErr = c.httpClient.Do(r)
+		return httpErr
+	}
+
+	err := backoff(fn)(context.Background())
 	if err != nil {
 		return 0, err
 	}

@@ -144,7 +144,7 @@ func checkAlive(conn *db.PGConnect) bool {
 		return false
 	}
 
-	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	initCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := conn.Ping(initCtx); err != nil {

@@ -52,6 +52,7 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 	}
 
 	cfg.Logger = config.Logger
+	cfg.Database.MaxRetries = config.Database.MaxRetries
 
 	if address := config.HTTP.Address; address != "" {
 		cfg.HTTP.Address = address

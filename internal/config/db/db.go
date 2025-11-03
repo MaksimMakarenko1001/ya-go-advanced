@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"time"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg/backoff"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -13,10 +15,11 @@ import (
 )
 
 type PGConnect struct {
-	db *sql.DB
+	db      *sql.DB
+	backoff *backoff.Backoff
 }
 
-func New(cfg Config) (*PGConnect, error) {
+func New(cfg Config, backoff *backoff.Backoff) (conn *PGConnect, err error) {
 	db, err := sql.Open("pgx", cfg.DSN)
 	if err != nil {
 		return nil, err
@@ -36,27 +39,40 @@ func New(cfg Config) (*PGConnect, error) {
 		return nil, err
 	}
 
-	return &PGConnect{db: db}, nil
+	return &PGConnect{
+		db:      db,
+		backoff: backoff,
+	}, nil
 
 }
 
 func (pg *PGConnect) Ping(ctx context.Context) error {
-	return pg.db.PingContext(ctx)
+	backoff := pg.backoff.WithLinear(time.Second, time.Second*2)
+	fn := func(ctx context.Context) error {
+		return pg.db.PingContext(ctx)
+	}
+
+	return backoff(fn)(ctx)
 }
 
 func (pg *PGConnect) QueryWithOneResult(
 	ctx context.Context, dst any, query string, args ...any,
 ) error {
-	row := pg.db.QueryRowContext(ctx, query, args...)
+	backoff := pg.backoff.WithLinear(time.Second, time.Second*2)
 
-	if err := row.Scan(dst); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
+	fn := func(ctx context.Context) error {
+		row := pg.db.QueryRowContext(ctx, query, args...)
+
+		if err := row.Scan(dst); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return errors.Join(err, errScanRow)
 		}
-		return errors.Join(err, errScanRow)
+		return nil
 	}
 
-	return nil
+	return backoff(fn)(ctx)
 }
 
 func (pg *PGConnect) QueryWithOneResultJSON(
