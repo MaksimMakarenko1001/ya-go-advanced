@@ -47,10 +47,10 @@ func New(cfg Config, backoff *backoff.Backoff) (conn *PGConnect, err error) {
 }
 
 func (pg *PGConnect) Ping(ctx context.Context) error {
-	backoff := pg.backoff.WithLinear(time.Second, time.Second*2)
 	fn := func(ctx context.Context) error {
 		return pg.db.PingContext(ctx)
 	}
+	backoff := pg.backoff.WithLinear(time.Second, time.Second*2)
 
 	return backoff(fn)(ctx)
 }
@@ -58,8 +58,6 @@ func (pg *PGConnect) Ping(ctx context.Context) error {
 func (pg *PGConnect) QueryWithOneResult(
 	ctx context.Context, dst any, query string, args ...any,
 ) error {
-	backoff := pg.backoff.WithLinear(time.Second, time.Second*2)
-
 	fn := func(ctx context.Context) error {
 		row := pg.db.QueryRowContext(ctx, query, args...)
 
@@ -71,6 +69,7 @@ func (pg *PGConnect) QueryWithOneResult(
 		}
 		return nil
 	}
+	backoff := pg.backoff.WithLinear(time.Second, time.Second*2)
 
 	return backoff(fn)(ctx)
 }

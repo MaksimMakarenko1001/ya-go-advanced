@@ -64,7 +64,15 @@ func (c *Client) sendMetricBatchJSON(batch []models.Metrics) (err error) {
 		return fmt.Errorf("batch request not ok, %w", err)
 	}
 
-	status, err := c.send(r)
+	var status int
+	fn := func(ctx context.Context) error {
+		var sendErr error
+		status, sendErr = c.send(r)
+		return sendErr
+	}
+
+	backoff := c.backoff.WithLinear(time.Second, time.Second*2)
+	err = backoff(fn)(context.Background())
 	if err != nil {
 		return fmt.Errorf("batch http not ok, %w", err)
 	}
@@ -298,16 +306,8 @@ func (c *Client) send(r *http.Request) (int, error) {
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
 
-	var resp *http.Response
-	backoff := c.backoff.WithLinear(time.Second, time.Second*2)
+	resp, err := c.httpClient.Do(r)
 
-	fn := func(ctx context.Context) error {
-		var httpErr error
-		resp, httpErr = c.httpClient.Do(r)
-		return httpErr
-	}
-
-	err := backoff(fn)(context.Background())
 	if err != nil {
 		return 0, err
 	}
