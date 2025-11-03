@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -301,7 +302,18 @@ func (c *Client) Start(pollInterval time.Duration, reportInterval time.Duration)
 
 }
 
-func (c *Client) send(r *http.Request) (int, error) {
+func (c *Client) send(req *http.Request) (int, error) {
+	buf := bytes.NewBuffer(nil)
+	_, err := io.Copy(buf, req.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	r, err := http.NewRequest(req.Method, req.URL.String(), buf)
+	if err != nil {
+		return 0, err
+	}
+
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
