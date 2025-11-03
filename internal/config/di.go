@@ -23,6 +23,7 @@ import (
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
 	updateService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg/backoff"
 )
 
 type DI struct {
@@ -71,7 +72,10 @@ func (di *DI) Init(envPrefix string) {
 
 func (di *DI) initDB() {
 	var err error
-	di.infr.db, err = db.New(di.config.Database)
+	di.infr.db, err = db.New(
+		di.config.Database,
+		backoff.NewBackoff(di.config.Database.MaxRetries, db.ClassifyPgError),
+	)
 	if err != nil {
 		log.Println("db init not ok,", err.Error())
 	}

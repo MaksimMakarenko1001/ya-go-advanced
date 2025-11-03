@@ -7,13 +7,14 @@ import (
 )
 
 type Config struct {
-	DSN      string `json:"-"`
-	Host     string `env:"host" envDefault:"localhost"`
-	Port     uint16 `env:"port" envDefault:"5432"`
-	User     string `env:"user" envDefault:"postgres"`
-	Password string `env:"password" envDefault:"postgres"`
-	Name     string `env:"name" envDefault:"postgres"`
-	SSLMode  string `env:"ssl_mode" envDefault:"disable"`
+	DSN        string `json:"-"`
+	Host       string `env:"host" envDefault:"localhost"`
+	Port       uint16 `env:"port" envDefault:"5432"`
+	User       string `env:"user" envDefault:"postgres"`
+	Password   string `env:"password" envDefault:"postgres"`
+	Name       string `env:"name" envDefault:"postgres"`
+	SSLMode    string `env:"ssl_mode" envDefault:"disable"`
+	MaxRetries uint16 `env:"max_retries" envDefault:"3"`
 }
 
 func (cfg Config) ToDSN() (string, error) {
@@ -35,17 +36,19 @@ func (cfg Config) ToDSN() (string, error) {
 }
 
 func (cfg Config) validate() error {
+	var errs []error
 	if cfg.Host == "" {
-		return errors.New("host undefined")
+		errs = append(errs, errHostUndefined)
 	}
 	if cfg.Port == 0 {
-		return errors.New("port undefined")
+		errs = append(errs, errPortUndefined)
 	}
 	if cfg.Name == "" {
-		return errors.New("name undefined")
+		errs = append(errs, errDBNameUndefined)
 	}
 	if cfg.User == "" {
-		return errors.New("user undefined")
+		errs = append(errs, errUserUndefined)
 	}
-	return nil
+
+	return errors.Join(errs...)
 }

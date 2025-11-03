@@ -3,8 +3,10 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg/backoff"
 )
 
 type Client struct {
@@ -23,15 +26,20 @@ type Client struct {
 	memStats   runtime.MemStats
 	pollCount  int64
 	batchSize  int
+	backoff    *backoff.Backoff
 }
 
 func NewClient(cfg HTTPClientConfig) *Client {
 	httpClient := &http.Client{Timeout: cfg.Timeout}
 
 	return &Client{
+		httpClient: httpClient,
 		host:       cfg.Address,
 		batchSize:  cfg.BatchSize,
-		httpClient: httpClient,
+		backoff: backoff.NewBackoff(
+			cfg.MaxRetries,
+			ClassifyHTTPError,
+		),
 	}
 }
 
@@ -57,7 +65,15 @@ func (c *Client) sendMetricBatchJSON(batch []models.Metrics) (err error) {
 		return fmt.Errorf("batch request not ok, %w", err)
 	}
 
-	status, err := c.send(r)
+	var status int
+	fn := func(ctx context.Context) error {
+		var sendErr error
+		status, sendErr = c.send(r)
+		return sendErr
+	}
+
+	backoff := c.backoff.WithLinear(time.Second, time.Second*2)
+	err = backoff(fn)(context.Background())
 	if err != nil {
 		return fmt.Errorf("batch http not ok, %w", err)
 	}
@@ -286,12 +302,24 @@ func (c *Client) Start(pollInterval time.Duration, reportInterval time.Duration)
 
 }
 
-func (c *Client) send(r *http.Request) (int, error) {
+func (c *Client) send(req *http.Request) (int, error) {
+	buf := bytes.NewBuffer(nil)
+	_, err := io.Copy(buf, req.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	r, err := http.NewRequest(req.Method, req.URL.String(), buf)
+	if err != nil {
+		return 0, err
+	}
+
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
 
 	resp, err := c.httpClient.Do(r)
+
 	if err != nil {
 		return 0, err
 	}
