@@ -35,17 +35,19 @@ func (cfg Config) ToDSN() (string, error) {
 }
 
 func (cfg Config) validate() error {
+	var errs []error
 	if cfg.Host == "" {
-		return errors.New("host undefined")
+		errs = append(errs, errHostUndefined)
 	}
 	if cfg.Port == 0 {
-		return errors.New("port undefined")
+		errs = append(errs, errPortUndefined)
 	}
 	if cfg.Name == "" {
-		return errors.New("name undefined")
+		errs = append(errs, errDBNameUndefined)
 	}
 	if cfg.User == "" {
-		return errors.New("user undefined")
+		errs = append(errs, errUserUndefined)
 	}
-	return nil
+
+	return errors.Join(errs...)
 }
