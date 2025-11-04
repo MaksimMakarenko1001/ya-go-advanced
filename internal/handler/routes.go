@@ -1,21 +1,21 @@
 package handler
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
-	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
-	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
+	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
+	getService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
-	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
-	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateBatchService/v0"
+	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
+	updateService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateService/v0"
 )
 
 type Route struct {
@@ -25,13 +25,15 @@ type Route struct {
 }
 
 type API struct {
-	router               *chi.Mux
-	logger               logger.HTTPLogger
-	updateCounterService *updateCounterService.Service
-	updateGaugeService   *updateGaugeService.Service
+	router *chi.Mux
+	logger logger.HTTPLogger
 
-	getCounterService *getCounterService.Service
-	getGaugeService   *getGaugeService.Service
+	updateFlatService  *updateFlatService.Service
+	updateBatchService *updateBatchService.Service
+	updateService      *updateService.Service
+
+	getFlatService *getFlatService.Service
+	getService     *getService.Service
 
 	listMetricService *listMetricService.Service
 
@@ -40,22 +42,24 @@ type API struct {
 
 func New(
 	logger logger.HTTPLogger,
-	updateCounterService *updateCounterService.Service,
-	updateGaugeService *updateGaugeService.Service,
-	getCounterService *getCounterService.Service,
-	getGaugeService *getGaugeService.Service,
+	updateFlatService *updateFlatService.Service,
+	updateBatchService *updateBatchService.Service,
+	updateService *updateService.Service,
+	getFlatService *getFlatService.Service,
+	getService *getService.Service,
 	listMetricService *listMetricService.Service,
 	dumpMetricService *dumpMetricService.Service,
 ) *API {
 	return &API{
-		router:               chi.NewRouter(),
-		logger:               logger,
-		updateCounterService: updateCounterService,
-		updateGaugeService:   updateGaugeService,
-		getCounterService:    getCounterService,
-		getGaugeService:      getGaugeService,
-		listMetricService:    listMetricService,
-		dumpMetricService:    dumpMetricService,
+		router:             chi.NewRouter(),
+		logger:             logger,
+		updateFlatService:  updateFlatService,
+		updateBatchService: updateBatchService,
+		updateService:      updateService,
+		getFlatService:     getFlatService,
+		getService:         getService,
+		listMetricService:  listMetricService,
+		dumpMetricService:  dumpMetricService,
 	}
 }
 
@@ -63,99 +67,72 @@ func (api API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	api.router.ServeHTTP(w, r)
 }
 
-func (api API) Route(withSync bool) {
+func (api API) HandlePing(db *db.PGConnect) {
+	api.router.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+		defer cancel()
+
+		if err := db.Ping(ctx); err != nil {
+			WriteError(w, err)
+		}
+
+		WriteOK(w)
+	})
+}
+
+func (api API) HandleIndex() {
 	api.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		handler := DoListMetricResponse(api.listMetricService.Do)
 		handler.ServeHTTP(w, r)
 	})
+}
 
+func (api API) HandleUpdate() {
 	api.router.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
-		var handler http.Handler
+		handler := DoUpdateFlatResponse(
+			api.updateFlatService.Do, chi.URLParam(r, "type"), chi.URLParam(r, "name"), chi.URLParam(r, "value"),
+		)
 
-		switch chi.URLParam(r, "type") {
-		case pkg.MetricTypeCounter:
-			handler = DoUpdateCounterResponse(api.updateCounterService.Do)
-		case pkg.MetricTypeGauge:
-			handler = DoUpdateGaugeResponse(api.updateGaugeService.Do)
-		}
-
-		if handler == nil {
-			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, "invalid metric type", http.StatusBadRequest)
-			})
-		}
 		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
 	})
+}
 
-	api.router.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
-		var handler http.Handler
-
-		switch chi.URLParam(r, "type") {
-		case pkg.MetricTypeCounter:
-			handler = DoGetCounterResponse(api.getCounterService.Do)
-		case pkg.MetricTypeGauge:
-			handler = DoGetGaugeResponse(api.getGaugeService.Do)
-		}
-
-		if handler == nil {
-			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, "invalid metric type", http.StatusBadRequest)
-			})
-		}
-		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
-	})
-
+func (api API) HandleUpdateJSON(withSync bool) {
 	api.router.Post("/update/", func(w http.ResponseWriter, r *http.Request) {
-		var handler http.Handler
-		var metric models.Metrics
-
-		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-			})
-		}
-
-		switch metric.MType {
-		case pkg.MetricTypeCounter:
-			handler = DoUpdateCounterJSONResponse(api.updateCounterService.Do, metric)
-		case pkg.MetricTypeGauge:
-			handler = DoUpdateGaugeJSONResponse(api.updateGaugeService.Do, metric)
-		}
-
-		if handler == nil {
-			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, "invalid metric type", http.StatusBadRequest)
-			})
-		}
+		var handler http.Handler = DoUpdateJSONResponse(api.updateService.Do)
 
 		if withSync {
 			handler = api.WithSync(handler)
 		}
 		handler.ServeHTTP(w, r)
 	})
+}
 
+func (api API) HandleUpdateBatchJSON(withSync bool) {
+	api.router.Post("/updates/", func(w http.ResponseWriter, r *http.Request) {
+		var handler http.Handler = DoUpdateBatchJSONResponse(api.updateBatchService.Do)
+
+		if withSync {
+			handler = api.WithSync(handler)
+		}
+		handler.ServeHTTP(w, r)
+	})
+}
+
+func (api API) HandleGet() {
+	api.router.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		handler := DoGetFlatResponse(
+			api.getFlatService.Do, chi.URLParam(r, "type"), chi.URLParam(r, "name"),
+		)
+
+		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
+	})
+}
+
+func (api API) HandleGetJSON() {
 	api.router.Post("/value/", func(w http.ResponseWriter, r *http.Request) {
-		var handler http.Handler
-		var metric models.Metrics
+		var handler http.Handler = DoGetJSONResponse(api.getService.Do)
 
-		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-			})
-		}
-
-		switch metric.MType {
-		case pkg.MetricTypeCounter:
-			handler = DoGetCounterJSONResponse(api.getCounterService.Do, metric)
-		case pkg.MetricTypeGauge:
-			handler = DoGetGaugeJSONResponse(api.getGaugeService.Do, metric)
-		}
-
-		if handler == nil {
-			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, "invalid metric type", http.StatusBadRequest)
-			})
-		}
 		handler.ServeHTTP(w, r)
 	})
 }

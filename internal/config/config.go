@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/caarlos0/env/v6"
 )
@@ -17,6 +18,7 @@ type diConfig struct {
 	StoreInterval   time.Duration    `env:"STORE_INTERVAL"`
 	FileStoragePath string           `env:"FILE_STORAGE_PATH"`
 	Restore         bool             `env:"RESTORE"`
+	Database        db.Config        `envPrefix:"DATABASE"`
 }
 
 func (cfg *diConfig) loadConfig(envPrefix string) {
@@ -34,6 +36,7 @@ func (cfg *diConfig) loadFromArg() {
 	flag.IntVar(&options.store, "i", 0, "store interval in seconds")
 	flag.StringVar(&cfg.FileStoragePath, "f", "dump.txt", "dump file path")
 	flag.BoolVar(&cfg.Restore, "r", false, "restore dump file on start")
+	flag.StringVar(&cfg.Database.DSN, "d", "", "data source name")
 
 	flag.Parse()
 
@@ -49,6 +52,7 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 	}
 
 	cfg.Logger = config.Logger
+	cfg.Database.MaxRetries = config.Database.MaxRetries
 
 	if address := config.HTTP.Address; address != "" {
 		cfg.HTTP.Address = address
@@ -61,6 +65,11 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 	}
 	if restore := config.Restore; restore {
 		cfg.Restore = restore
+	}
+	if dsn, err := config.Database.ToDSN(); err != nil {
+		log.Printf("db config not ok, %s\n", err.Error())
+	} else {
+		cfg.Database.DSN = dsn
 	}
 }
 
@@ -78,6 +87,9 @@ func (cfg *diConfig) loadFromEnvToPassTests() {
 	}
 	if restore := os.Getenv("RESTORE"); restore != "" {
 		cfg.Restore = restore == "true"
+	}
+	if dsn := os.Getenv("DATABASE_DSN"); dsn != "" {
+		cfg.Database.DSN = dsn
 	}
 }
 

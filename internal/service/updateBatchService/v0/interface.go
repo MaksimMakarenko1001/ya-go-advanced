@@ -7,5 +7,5 @@ import (
 )
 
 type MetricRepository interface {
-	Add(ctx context.Context, item entities.CounterItem) (ok bool, err error)
+	AddUpdateBatch(ctx context.Context, counters []entities.CounterItem, gauges []entities.GaugeItem) (ok bool, err error)
 }

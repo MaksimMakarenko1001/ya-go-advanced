@@ -1,6 +1,9 @@
 package inmemory
 
 import (
+	"context"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 )
 
@@ -21,70 +24,124 @@ func New(encoder Encoder) *Repository {
 	}
 }
 
-func (r *Repository) Add(name string, value int64) bool {
+func (r *Repository) AddUpdateBatch(ctx context.Context, counters []entities.CounterItem, gauges []entities.GaugeItem) (ok bool, err error) {
+	var intZero int64
+	for _, counter := range counters {
+		name := counter.MetricName
+		if _, ok := r.collection[name]; !ok {
+			r.collection[name] = &Item{Name: name, IntValue: &intZero}
+		}
+
+		x := r.collection[name]
+		if !x.hasIntValue() {
+			return false, nil
+		}
+	}
+
+	var floatZero float64
+	for _, gauge := range gauges {
+		name := gauge.MetricName
+		if _, ok := r.collection[name]; !ok {
+			r.collection[name] = &Item{Name: name, FloatValue: &floatZero}
+		}
+
+		x := r.collection[name]
+		if !x.hasFloatValue() {
+			return false, nil
+		}
+	}
+
+	for _, counter := range counters {
+		r.collection[counter.MetricName].add(counter.MetricValue)
+	}
+	for _, gauge := range gauges {
+		r.collection[gauge.MetricName].update(gauge.MetricValue)
+	}
+
+	return true, nil
+}
+
+func (r *Repository) Add(ctx context.Context, item entities.CounterItem) (bool, error) {
 	var zero int64
+
+	name := item.MetricName
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, IntValue: &zero}
 	}
 
-	item := r.collection[name]
-	if !item.hasIntValue() {
-		return false
+	x := r.collection[name]
+	if !x.hasIntValue() {
+		return false, nil
 	}
 
-	r.collection[name].add(value)
-	return true
+	r.collection[name].add(item.MetricValue)
+	return true, nil
 }
 
-func (r *Repository) Update(name string, value float64) bool {
+func (r *Repository) Update(ctx context.Context, item entities.GaugeItem) (bool, error) {
 	var zero float64
+
+	name := item.MetricName
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, FloatValue: &zero}
 	}
 
-	item := r.collection[name]
-	if !item.hasFloatValue() {
-		return false
+	x := r.collection[name]
+	if !x.hasFloatValue() {
+		return false, nil
 	}
 
-	r.collection[name].update(value)
-	return true
+	r.collection[name].update(item.MetricValue)
+	return true, nil
 }
 
-func (r *Repository) Get(name string) (any, bool) {
-	var value any
-
-	if item, ok := r.collection[name]; ok {
-		if item.hasIntValue() {
-			value = *item.IntValue
-		}
-		if item.hasFloatValue() {
-			value = *item.FloatValue
-		}
+func (r *Repository) GetCounter(ctx context.Context, name string) (*entities.CounterItem, bool, error) {
+	item, ok := r.collection[name]
+	if !ok || !item.hasIntValue() {
+		return nil, false, nil
 	}
 
-	return value, value != nil
+	return &entities.CounterItem{
+		MetricName:  item.Name,
+		MetricValue: *item.IntValue,
+	}, true, nil
 }
 
-func (r *Repository) List() []listMetricService.MetricItem {
-	res := make([]listMetricService.MetricItem, 0, len(r.collection))
+func (r *Repository) GetGauge(ctx context.Context, name string) (*entities.GaugeItem, bool, error) {
+	item, ok := r.collection[name]
+	if !ok || !item.hasFloatValue() {
+		return nil, false, nil
+	}
+
+	return &entities.GaugeItem{
+		MetricName:  item.Name,
+		MetricValue: *item.FloatValue,
+	}, true, nil
+}
+
+func (r *Repository) List(ctx context.Context) (listMetricService.MetricData, error) {
+	counters := make([]entities.CounterItem, 0, len(r.collection))
+	gauges := make([]entities.GaugeItem, 0, len(r.collection))
+
 	for name, item := range r.collection {
-		var value any
 		if item.hasIntValue() {
-			value = *item.IntValue
-		}
-		if item.hasFloatValue() {
-			value = *item.FloatValue
+			counters = append(counters, entities.CounterItem{
+				MetricName:  name,
+				MetricValue: *item.IntValue,
+			})
 		}
 
-		if value != nil {
-			res = append(res, listMetricService.MetricItem{
-				Name:  name,
-				Value: value,
+		if item.hasFloatValue() {
+			gauges = append(gauges, entities.GaugeItem{
+				MetricName:  name,
+				MetricValue: *item.FloatValue,
 			})
 		}
 	}
-	return res
+	return listMetricService.MetricData{
+		Counters: counters,
+		Gauges:   gauges,
+	}, nil
 }
 
 func (r *Repository) Load(b []byte) error {

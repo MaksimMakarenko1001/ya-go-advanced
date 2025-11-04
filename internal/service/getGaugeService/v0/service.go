@@ -1,6 +1,8 @@
 package v0
 
 import (
+	"context"
+
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
 
@@ -15,17 +17,16 @@ func New(metricRepo MetricRepository) *Service {
 }
 
 func (srv *Service) Do(
+	ctx context.Context,
 	metricName string,
 ) (*float64, error) {
-	value, ok := srv.metricRepository.Get(metricName)
+	item, ok, err := srv.metricRepository.GetGauge(ctx, metricName)
+	if err != nil {
+		return nil, pkg.ErrInternalServer.SetInfo(err.Error())
+	}
 	if !ok {
 		return nil, pkg.ErrNotFound.SetInfof("`%s` not found", metricName)
 	}
 
-	metricValue, ok := value.(float64)
-	if !ok {
-		return nil, pkg.ErrBadRequest.SetInfof("`%s` type mismatch", metricName)
-	}
-
-	return &metricValue, nil
+	return &item.MetricValue, nil
 }
