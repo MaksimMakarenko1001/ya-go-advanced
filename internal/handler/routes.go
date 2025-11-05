@@ -141,20 +141,24 @@ func (api API) WithLogging(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		httpInfo := logger.HTTPInfo{
-			URI:    r.RequestURI,
-			Method: r.Method,
-		}
-
+		var resp ResponseInfo
 		rw := responseWriter{
 			ResponseWriter: w,
-			response:       &httpInfo.Response,
+			response:       &resp,
 		}
+
 		h.ServeHTTP(&rw, r)
 
-		httpInfo.Duration = time.Since(start)
-
-		api.logger.LogHTTP(httpInfo)
+		api.logger.LogHTTP(logger.HTTPInfo{
+			URI:      r.RequestURI,
+			Method:   r.Method,
+			Duration: time.Since(start),
+			Response: logger.ResponseInfo{
+				Size:   resp.Size,
+				Status: resp.Status,
+				Body:   resp.Body,
+			},
+		})
 	})
 }
 

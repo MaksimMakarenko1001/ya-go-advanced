@@ -1,16 +1,21 @@
 package handler
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
 	"net/http"
-
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 )
+
+type ResponseInfo struct {
+	Size   int
+	Status int
+	Body   bytes.Buffer
+}
 
 type responseWriter struct {
 	http.ResponseWriter
-	response *logger.ResponseInfo
+	response *ResponseInfo
 }
 
 func (r *responseWriter) Write(b []byte) (int, error) {
