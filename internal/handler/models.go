@@ -7,6 +7,24 @@ import (
 	"net/http"
 )
 
+type responseHashWriter struct {
+	header     http.Header
+	body       bytes.Buffer
+	statusCode int
+}
+
+func (rh *responseHashWriter) Header() http.Header {
+	return rh.header
+}
+
+func (rh *responseHashWriter) Write(b []byte) (int, error) {
+	return rh.body.Write(b)
+}
+
+func (rh *responseHashWriter) WriteHeader(statusCode int) {
+	rh.statusCode = statusCode
+}
+
 type ResponseInfo struct {
 	Size   int
 	Status int

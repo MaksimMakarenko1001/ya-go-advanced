@@ -134,6 +134,7 @@ func DoGetJSONResponse(srv GetService) http.HandlerFunc {
 		resp, err := json.Marshal(*metric)
 		if err != nil {
 			WriteError(w, fmt.Errorf("convert to get response not ok, %w", err))
+			return
 		}
 
 		WriteJSONResult(w, resp)
@@ -142,16 +143,17 @@ func DoGetJSONResponse(srv GetService) http.HandlerFunc {
 
 func WriteJSONResult(w http.ResponseWriter, response []byte) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(response); err != nil {
 		WriteError(w, fmt.Errorf("write json not ok, %w", err))
+		return
 	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func WriteResult(w http.ResponseWriter, res string) {
 	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, res)
+	w.WriteHeader(http.StatusOK)
 }
 
 func WriteOK(w http.ResponseWriter) {

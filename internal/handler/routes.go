@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
 	getService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getService/v0"
+	hashService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/hashService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateBatchService/v0"
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
@@ -38,6 +41,7 @@ type API struct {
 	listMetricService *listMetricService.Service
 
 	dumpMetricService *dumpMetricService.Service
+	hashService       *hashService.Service
 }
 
 func New(
@@ -49,6 +53,7 @@ func New(
 	getService *getService.Service,
 	listMetricService *listMetricService.Service,
 	dumpMetricService *dumpMetricService.Service,
+	hashService *hashService.Service,
 ) *API {
 	return &API{
 		router:             chi.NewRouter(),
@@ -60,6 +65,7 @@ func New(
 		getService:         getService,
 		listMetricService:  listMetricService,
 		dumpMetricService:  dumpMetricService,
+		hashService:        hashService,
 	}
 }
 
@@ -169,6 +175,39 @@ func (api API) WithSync(h http.Handler) http.Handler {
 		if err := api.dumpMetricService.WriteDump(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+	})
+}
+
+func (api API) WithHash(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf := new(bytes.Buffer)
+		if _, err := io.Copy(buf, r.Body); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		if err := api.hashService.Validate(r.Context(), buf.Bytes(), r.Header.Get("HashSHA256")); err != nil {
+			WriteError(w, err)
+			return
+		}
+
+		hw := responseHashWriter{
+			header:     w.Header(),
+			body:       bytes.Buffer{},
+			statusCode: http.StatusOK,
+		}
+		r.Body = io.NopCloser(buf)
+		h.ServeHTTP(&hw, r)
+
+		if hw.statusCode == http.StatusOK {
+			hash, err := api.hashService.Hash(r.Context(), hw.body.Bytes())
+			if err != nil {
+				WriteError(w, err)
+				return
+			}
+			w.Header().Set("HashSHA256", hash)
+		}
+		w.WriteHeader(hw.statusCode)
+		w.Write(hw.body.Bytes())
 	})
 }
 
