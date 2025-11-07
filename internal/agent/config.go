@@ -31,6 +31,7 @@ func (cfg *Config) loadFromArg() {
 	flag.StringVar(&cfg.HTTP.Address, "a", `localhost:8080`, "agent net address")
 	flag.IntVar(&options.pool, "p", 2, "pool interval in seconds")
 	flag.IntVar(&options.report, "r", 10, "report interval in seconds")
+	flag.StringVar(&cfg.HTTP.Key, "k", "", "hash key")
 
 	flag.Parse()
 
@@ -48,6 +49,7 @@ func (cfg *Config) loadFromEnv(envPrefix string) {
 
 	cfg.HTTP.BatchSize = config.HTTP.BatchSize
 	cfg.HTTP.MaxRetries = config.HTTP.MaxRetries
+	cfg.HTTP.Key = config.HTTP.Key
 
 	if address := config.HTTP.Address; address != "" {
 		cfg.HTTP.Address = address
@@ -76,6 +78,10 @@ func (cfg *Config) loadFromEnvPassTests() {
 	} else {
 		cfg.ReportInterval = time.Second * time.Duration(report)
 	}
+
+	if key := os.Getenv("KEY"); key != "" {
+		cfg.HTTP.Key = key
+	}
 }
 
 type HTTPClientConfig struct {
@@ -83,4 +89,5 @@ type HTTPClientConfig struct {
 	Timeout    time.Duration `env:"TIMEOUT" envDefault:"10s"`
 	BatchSize  int           `env:"BATCH_SIZE" envDefault:"3"`
 	MaxRetries uint16        `env:"MAX_RETRIES" envDefault:"3"`
+	Key        string        `env:"KEY"`
 }
