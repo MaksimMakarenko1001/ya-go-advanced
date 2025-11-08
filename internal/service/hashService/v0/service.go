@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/base64"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
 )
@@ -24,7 +24,7 @@ func (s *Service) Validate(ctx context.Context, message []byte, hash string) err
 		return nil
 	}
 
-	hashBytes, err := hex.DecodeString(hash)
+	hashBytes, err := base64.StdEncoding.DecodeString(hash)
 	if err != nil {
 		return pkg.ErrInternalServer.SetInfof("failed to decode hash, %v", err)
 	}
@@ -50,5 +50,5 @@ func (s *Service) Hash(ctx context.Context, message []byte) (string, error) {
 		return "", pkg.ErrInternalServer.SetInfof("failed to hash message, %v", err)
 	}
 
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
 }

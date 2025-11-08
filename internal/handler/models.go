@@ -8,21 +8,26 @@ import (
 )
 
 type responseHashWriter struct {
-	header     http.Header
-	body       bytes.Buffer
-	statusCode int
-}
-
-func (rh *responseHashWriter) Header() http.Header {
-	return rh.header
+	http.ResponseWriter
+	body     bytes.Buffer
+	hashFunc func(message []byte) (string, error)
 }
 
 func (rh *responseHashWriter) Write(b []byte) (int, error) {
+	rh.ResponseWriter.Write(b)
 	return rh.body.Write(b)
 }
 
 func (rh *responseHashWriter) WriteHeader(statusCode int) {
-	rh.statusCode = statusCode
+	rh.ResponseWriter.WriteHeader(statusCode)
+	if statusCode == http.StatusOK {
+		hash, err := rh.hashFunc(rh.body.Bytes())
+		if err != nil {
+			WriteError(rh.ResponseWriter, err)
+			return
+		}
+		rh.ResponseWriter.Header().Set("HashSHA256", hash)
+	}
 }
 
 type ResponseInfo struct {

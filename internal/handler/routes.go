@@ -180,34 +180,28 @@ func (api API) WithSync(h http.Handler) http.Handler {
 
 func (api API) WithHash(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		buf := new(bytes.Buffer)
-		if _, err := io.Copy(buf, r.Body); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		if hash := r.Header.Get("HashSHA256"); hash != "" {
+			buf := new(bytes.Buffer)
+			if _, err := io.Copy(buf, r.Body); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 
-		if err := api.hashService.Validate(r.Context(), buf.Bytes(), r.Header.Get("HashSHA256")); err != nil {
-			WriteError(w, err)
-			return
-		}
-
-		hw := responseHashWriter{
-			header:     w.Header(),
-			body:       bytes.Buffer{},
-			statusCode: http.StatusOK,
-		}
-		r.Body = io.NopCloser(buf)
-		h.ServeHTTP(&hw, r)
-
-		if hw.statusCode == http.StatusOK {
-			hash, err := api.hashService.Hash(r.Context(), hw.body.Bytes())
-			if err != nil {
+			if err := api.hashService.Validate(r.Context(), buf.Bytes(), hash); err != nil {
 				WriteError(w, err)
 				return
 			}
-			w.Header().Set("HashSHA256", hash)
+
+			r.Body = io.NopCloser(buf)
 		}
-		w.WriteHeader(hw.statusCode)
-		w.Write(hw.body.Bytes())
+
+		hw := responseHashWriter{
+			ResponseWriter: w,
+			body:           bytes.Buffer{},
+			hashFunc: func(message []byte) (string, error) {
+				return api.hashService.Hash(r.Context(), message)
+			},
+		}
+		h.ServeHTTP(&hw, r)
 	})
 }
 
