@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,6 +29,7 @@ type Client struct {
 	memStats   runtime.MemStats
 	pollCount  int64
 	batchSize  int
+	hashKey    string
 	backoff    *backoff.Backoff
 }
 
@@ -36,6 +40,7 @@ func NewClient(cfg HTTPClientConfig) *Client {
 		httpClient: httpClient,
 		host:       cfg.Address,
 		batchSize:  cfg.BatchSize,
+		hashKey:    cfg.Key,
 		backoff: backoff.NewBackoff(
 			cfg.MaxRetries,
 			ClassifyHTTPError,
@@ -306,22 +311,28 @@ func (c *Client) send(req *http.Request) (int, error) {
 	buf := bytes.NewBuffer(nil)
 	_, err := io.Copy(buf, req.Body)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("copy not ok, %w", err)
 	}
 
 	r, err := http.NewRequest(req.Method, req.URL.String(), buf)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("request not ok, %w", err)
+	}
+
+	hash, err := c.hashUp(buf.Bytes())
+	if err != nil {
+		return 0, fmt.Errorf("hash not ok, %w", err)
 	}
 
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
+	r.Header.Set("HashSHA256", hash)
 
 	resp, err := c.httpClient.Do(r)
 
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("http not ok, %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -348,4 +359,17 @@ func newGZipRequest(method string, url string, body []byte) (*http.Request, erro
 	}
 
 	return request, nil
+}
+
+func (c *Client) hashUp(body []byte) (string, error) {
+	if c.hashKey == "" {
+		return "", nil
+	}
+
+	h := hmac.New(sha256.New, []byte(c.hashKey))
+	if _, err := h.Write(body); err != nil {
+		return "", fmt.Errorf("failed to hash message, %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
 }
