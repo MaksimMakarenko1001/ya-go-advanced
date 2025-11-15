@@ -7,3 +7,8 @@ func ValuesToList[K comparable, V any](m map[K]V) (l []V) {
 	}
 	return l
 }
+
+// Creates a new pointer to the value.
+func ToPtr[T any](value T) *T {
+	return &value
+}
