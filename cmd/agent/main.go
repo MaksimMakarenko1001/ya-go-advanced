@@ -20,9 +20,9 @@ func run() error {
 	cfg := &agent.Config{}
 	cfg.LoadConfig("AGENT_")
 
-	cli := agent.NewClient(cfg.HTTP)
+	cli := agent.NewClient(*cfg)
 
-	log.Printf("agent starts on %s\n", cfg.HTTP.Address)
+	log.Printf("agent starts on %s\n", cfg.Address)
 
-	return cli.Start(cfg.PollInterval, cfg.ReportInterval)
+	return cli.Start()
 }

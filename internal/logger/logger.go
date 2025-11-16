@@ -19,5 +19,5 @@ type HTTPInfo struct {
 type ResponseInfo struct {
 	Size   int          `json:"size"`
 	Status int          `json:"status"`
-	Body   bytes.Buffer `json:"-"`
+	Body   bytes.Buffer `json:"body"`
 }

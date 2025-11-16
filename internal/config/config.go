@@ -9,16 +9,18 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
+	hashService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/hashService/v0"
 	"github.com/caarlos0/env/v6"
 )
 
 type diConfig struct {
-	HTTP            HTTPServerConfig `envPrefix:"HTTP_"`
-	Logger          logger.Config    `envPrefix:"LOGGER_"`
-	StoreInterval   time.Duration    `env:"STORE_INTERVAL"`
-	FileStoragePath string           `env:"FILE_STORAGE_PATH"`
-	Restore         bool             `env:"RESTORE"`
-	Database        db.Config        `envPrefix:"DATABASE"`
+	HTTP            HTTPServerConfig   `envPrefix:"HTTP_"`
+	Logger          logger.Config      `envPrefix:"LOGGER_"`
+	StoreInterval   time.Duration      `env:"STORE_INTERVAL"`
+	FileStoragePath string             `env:"FILE_STORAGE_PATH"`
+	Restore         bool               `env:"RESTORE"`
+	Database        db.Config          `envPrefix:"DATABASE"`
+	HashService     hashService.Config `envPrefix:"HASH_SERVICE_"`
 }
 
 func (cfg *diConfig) loadConfig(envPrefix string) {
@@ -37,6 +39,7 @@ func (cfg *diConfig) loadFromArg() {
 	flag.StringVar(&cfg.FileStoragePath, "f", "dump.txt", "dump file path")
 	flag.BoolVar(&cfg.Restore, "r", false, "restore dump file on start")
 	flag.StringVar(&cfg.Database.DSN, "d", "", "data source name")
+	flag.StringVar(&cfg.HashService.Key, "k", "", "hash key")
 
 	flag.Parse()
 
@@ -53,6 +56,7 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 
 	cfg.Logger = config.Logger
 	cfg.Database.MaxRetries = config.Database.MaxRetries
+	cfg.HashService.Key = config.HashService.Key
 
 	if address := config.HTTP.Address; address != "" {
 		cfg.HTTP.Address = address
@@ -90,6 +94,9 @@ func (cfg *diConfig) loadFromEnvToPassTests() {
 	}
 	if dsn := os.Getenv("DATABASE_DSN"); dsn != "" {
 		cfg.Database.DSN = dsn
+	}
+	if key := os.Getenv("KEY"); key != "" {
+		cfg.HashService.Key = key
 	}
 }
 

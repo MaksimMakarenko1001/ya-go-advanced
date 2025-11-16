@@ -11,9 +11,14 @@ import (
 )
 
 type Config struct {
-	HTTP           HTTPClientConfig `envPrefix:"HTTP_"`
-	PollInterval   time.Duration    `env:"POOL_INTERVAL"`
-	ReportInterval time.Duration    `env:"REPORT_INTERVAL"`
+	Address        string        `env:"ADDRESS"`
+	Timeout        time.Duration `env:"TIMEOUT" envDefault:"10s"`
+	BatchSize      int           `env:"BATCH_SIZE" envDefault:"3"`
+	MaxRetries     uint16        `env:"MAX_RETRIES" envDefault:"3"`
+	Key            string        `env:"KEY"`
+	PollInterval   time.Duration `env:"POOL_INTERVAL"`
+	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
+	RateLimit      int           `env:"RATE_LIMIT"`
 }
 
 func (cfg *Config) LoadConfig(envPrefix string) {
@@ -23,19 +28,17 @@ func (cfg *Config) LoadConfig(envPrefix string) {
 }
 
 func (cfg *Config) loadFromArg() {
-	var options struct {
-		pool   int
-		report int
-	}
-
-	flag.StringVar(&cfg.HTTP.Address, "a", `localhost:8080`, "agent net address")
-	flag.IntVar(&options.pool, "p", 2, "pool interval in seconds")
-	flag.IntVar(&options.report, "r", 10, "report interval in seconds")
+	flag.StringVar(&cfg.Address, "a", `localhost:8080`, "agent net address")
+	flag.DurationVar(&cfg.PollInterval, "p", 2, "pool interval in seconds")
+	flag.DurationVar(&cfg.ReportInterval, "r", 10, "report interval in seconds")
+	flag.StringVar(&cfg.Key, "k", "", "hash key")
+	flag.IntVar(&cfg.RateLimit, "l", 5, "num threads work concurrently")
 
 	flag.Parse()
 
-	cfg.PollInterval = time.Second * time.Duration(options.pool)
-	cfg.ReportInterval = time.Second * time.Duration(options.report)
+	cfg.PollInterval = time.Second * cfg.PollInterval
+	cfg.ReportInterval = time.Second * cfg.ReportInterval
+
 }
 
 func (cfg *Config) loadFromEnv(envPrefix string) {
@@ -46,11 +49,12 @@ func (cfg *Config) loadFromEnv(envPrefix string) {
 		return
 	}
 
-	cfg.HTTP.BatchSize = config.HTTP.BatchSize
-	cfg.HTTP.MaxRetries = config.HTTP.MaxRetries
+	cfg.BatchSize = config.BatchSize
+	cfg.MaxRetries = config.MaxRetries
+	cfg.Key = config.Key
 
-	if address := config.HTTP.Address; address != "" {
-		cfg.HTTP.Address = address
+	if address := config.Address; address != "" {
+		cfg.Address = address
 	}
 	if pool := config.PollInterval; pool.String() != "0s" {
 		cfg.PollInterval = pool
@@ -58,11 +62,14 @@ func (cfg *Config) loadFromEnv(envPrefix string) {
 	if report := config.ReportInterval; report.String() != "0s" {
 		cfg.ReportInterval = report
 	}
+	if rateLimit := config.RateLimit; rateLimit > 0 {
+		cfg.RateLimit = rateLimit
+	}
 }
 
 func (cfg *Config) loadFromEnvPassTests() {
 	if address := os.Getenv("ADDRESS"); address != "" {
-		cfg.HTTP.Address = address
+		cfg.Address = address
 	}
 
 	if pool, err := strconv.Atoi(os.Getenv("POOL_INTERVAL")); err != nil {
@@ -76,11 +83,14 @@ func (cfg *Config) loadFromEnvPassTests() {
 	} else {
 		cfg.ReportInterval = time.Second * time.Duration(report)
 	}
-}
 
-type HTTPClientConfig struct {
-	Address    string        `env:"ADDRESS"`
-	Timeout    time.Duration `env:"TIMEOUT" envDefault:"10s"`
-	BatchSize  int           `env:"BATCH_SIZE" envDefault:"3"`
-	MaxRetries uint16        `env:"MAX_RETRIES" envDefault:"3"`
+	if key := os.Getenv("KEY"); key != "" {
+		cfg.Key = key
+	}
+
+	if rateLimit, err := strconv.Atoi(os.Getenv("RATE_LIMIT")); err != nil {
+		log.Printf("RATE_LIMIT env not ok, %s\n", err.Error())
+	} else {
+		cfg.RateLimit = rateLimit
+	}
 }

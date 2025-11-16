@@ -1,16 +1,44 @@
 package handler
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
 	"net/http"
-
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 )
+
+type responseHashWriter struct {
+	http.ResponseWriter
+	body     bytes.Buffer
+	hashFunc func(message []byte) (string, error)
+}
+
+func (rh *responseHashWriter) Write(b []byte) (int, error) {
+	rh.ResponseWriter.Write(b)
+	return rh.body.Write(b)
+}
+
+func (rh *responseHashWriter) WriteHeader(statusCode int) {
+	rh.ResponseWriter.WriteHeader(statusCode)
+	if statusCode == http.StatusOK {
+		hash, err := rh.hashFunc(rh.body.Bytes())
+		if err != nil {
+			WriteError(rh.ResponseWriter, err)
+			return
+		}
+		rh.ResponseWriter.Header().Set("HashSHA256", hash)
+	}
+}
+
+type ResponseInfo struct {
+	Size   int
+	Status int
+	Body   bytes.Buffer
+}
 
 type responseWriter struct {
 	http.ResponseWriter
-	response *logger.ResponseInfo
+	response *ResponseInfo
 }
 
 func (r *responseWriter) Write(b []byte) (int, error) {

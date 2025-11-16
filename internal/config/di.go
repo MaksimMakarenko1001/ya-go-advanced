@@ -17,6 +17,7 @@ import (
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
 	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
 	getService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getService/v0"
+	hashService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/hashService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
 	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateBatchService/v0"
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
@@ -51,6 +52,7 @@ type DI struct {
 		listMetricService *listMetricService.Service
 
 		dumpMetricService *dumpMetricService.Service
+		hashService       *hashService.Service
 	}
 	api struct {
 		external *handler.API
@@ -108,6 +110,7 @@ func (di *DI) initServices() {
 	di.services.listMetricService = listMetricService.New(di.repositories.pgStorage)
 
 	di.services.dumpMetricService = dumpMetricService.New(di.config.FileStoragePath, di.repositories.inmemoryStorage)
+	di.services.hashService = hashService.New(di.config.HashService)
 }
 
 func (di *DI) initAPI() {
@@ -120,6 +123,7 @@ func (di *DI) initAPI() {
 		di.services.getService,
 		di.services.listMetricService,
 		di.services.dumpMetricService,
+		di.services.hashService,
 	)
 }
 
@@ -171,6 +175,7 @@ func (di *DI) Start() error {
 		di.api.external,
 		di.api.external.WithLogging,
 		handler.MiddlewareCompress,
+		di.api.external.WithHash,
 	))
 
 	errCh <- err

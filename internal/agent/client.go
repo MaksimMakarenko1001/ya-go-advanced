@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -22,20 +24,18 @@ import (
 
 type Client struct {
 	httpClient *http.Client
-	host       string
+	config     Config
 	memStats   runtime.MemStats
 	pollCount  int64
-	batchSize  int
 	backoff    *backoff.Backoff
 }
 
-func NewClient(cfg HTTPClientConfig) *Client {
+func NewClient(cfg Config) *Client {
 	httpClient := &http.Client{Timeout: cfg.Timeout}
 
 	return &Client{
 		httpClient: httpClient,
-		host:       cfg.Address,
-		batchSize:  cfg.BatchSize,
+		config:     cfg,
 		backoff: backoff.NewBackoff(
 			cfg.MaxRetries,
 			ClassifyHTTPError,
@@ -43,14 +43,14 @@ func NewClient(cfg HTTPClientConfig) *Client {
 	}
 }
 
-func (c *Client) sendMetricBatchJSON(batch []models.Metrics) (err error) {
+func (c *Client) sendBatchJSON(batch []models.Metrics) (err error) {
 	if len(batch) == 0 {
 		return nil
 	}
 
 	u := url.URL{
 		Scheme: "http",
-		Host:   c.host,
+		Host:   c.config.Address,
 		Path:   "/updates/",
 	}
 
@@ -90,7 +90,7 @@ func (c *Client) sendGaugeMetric(metricName string, value float64) (err error) {
 
 	u := url.URL{
 		Scheme: "http",
-		Host:   c.host,
+		Host:   c.config.Address,
 		Path:   "/update/gauge/" + metricName + "/" + valueStr,
 	}
 
@@ -111,7 +111,7 @@ func (c *Client) sendGaugeMetric(metricName string, value float64) (err error) {
 func (c *Client) sendGaugeMetricJSON(metricName string, value float64) (err error) {
 	u := url.URL{
 		Scheme: "http",
-		Host:   c.host,
+		Host:   c.config.Address,
 		Path:   "/update/",
 	}
 
@@ -147,7 +147,7 @@ func (c *Client) sendCounterMetric(metricName string, value int64) (err error) {
 
 	u := url.URL{
 		Scheme: "http",
-		Host:   c.host,
+		Host:   c.config.Address,
 		Path:   "/update/counter/" + metricName + "/" + valueStr,
 	}
 
@@ -169,7 +169,7 @@ func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err erro
 
 	u := url.URL{
 		Scheme: "http",
-		Host:   c.host,
+		Host:   c.config.Address,
 		Path:   "/update/",
 	}
 
@@ -201,104 +201,83 @@ func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err erro
 	return nil
 }
 
-func (c *Client) collectMetrics() []models.Metrics {
-	counters := c.collectCounterMetrics()
-	gauges := c.collectGaugeMetrics()
+func (c *Client) collect(doneCh <-chan struct{}) <-chan models.Metrics {
+	ch := make(chan models.Metrics)
+	genChs := []<-chan models.Metrics{}
 
-	metrics := make([]models.Metrics, 0, len(counters)+len(gauges))
-	for k, v := range counters {
-		metrics = append(metrics, models.Metrics{
-			ID:    k,
-			MType: pkg.MetricTypeCounter,
-			Delta: &v,
-		})
-	}
-	for k, v := range gauges {
-		metrics = append(metrics, models.Metrics{
-			ID:    k,
-			MType: pkg.MetricTypeGauge,
-			Value: &v,
-		})
-	}
+	collection := []models.Metrics{}
+	poolTicker := time.NewTicker(c.config.PollInterval)
+	reportTicker := time.NewTicker(c.config.ReportInterval)
 
-	return metrics
-}
+	go func() {
+		defer close(ch)
+		defer poolTicker.Stop()
+		defer reportTicker.Stop()
 
-func (c *Client) collectCounterMetrics() map[string]int64 {
-	c.pollCount += 1
-	return map[string]int64{
-		"PollCount": c.pollCount,
-	}
-}
+		for {
+			select {
+			case <-doneCh:
+				return
+			case <-poolTicker.C:
+				log.Println("Collects metrics")
 
-func (c *Client) collectGaugeMetrics() map[string]float64 {
-	runtime.ReadMemStats(&c.memStats)
-	return map[string]float64{
-		"Alloc":         float64(c.memStats.Alloc),
-		"BuckHashSys":   float64(c.memStats.BuckHashSys),
-		"Frees":         float64(c.memStats.Frees),
-		"GCCPUFraction": c.memStats.GCCPUFraction,
-		"GCSys":         float64(c.memStats.GCSys),
-		"HeapAlloc":     float64(c.memStats.HeapAlloc),
-		"HeapIdle":      float64(c.memStats.HeapIdle),
-		"HeapInuse":     float64(c.memStats.HeapInuse),
-		"HeapObjects":   float64(c.memStats.HeapObjects),
-		"HeapReleased":  float64(c.memStats.HeapReleased),
-		"HeapSys":       float64(c.memStats.HeapSys),
-		"LastGC":        float64(c.memStats.LastGC),
-		"Lookups":       float64(c.memStats.Lookups),
-		"MCacheInuse":   float64(c.memStats.MCacheInuse),
-		"MCacheSys":     float64(c.memStats.MCacheSys),
-		"MSpanInuse":    float64(c.memStats.MSpanInuse),
-		"MSpanSys":      float64(c.memStats.MSpanSys),
-		"Mallocs":       float64(c.memStats.Mallocs),
-		"NextGC":        float64(c.memStats.NextGC),
-		"NumForcedGC":   float64(c.memStats.NumForcedGC),
-		"NumGC":         float64(c.memStats.NumGC),
-		"OtherSys":      float64(c.memStats.OtherSys),
-		"PauseTotalNs":  float64(c.memStats.PauseTotalNs),
-		"StackInuse":    float64(c.memStats.StackInuse),
-		"StackSys":      float64(c.memStats.StackSys),
-		"Sys":           float64(c.memStats.Sys),
-		"TotalAlloc":    float64(c.memStats.TotalAlloc),
-		"RandomValue":   rand.Float64(),
-	}
+				collection = append(collection, genCounters(&c.pollCount)...)
+				collection = append(collection, genGauge(&c.memStats)...)
+				collection = append(collection, genExtraGauge()...)
+				genChs = append(genChs, gen(doneCh, collection))
+			case <-reportTicker.C:
+				log.Println("Try to report metrics")
 
-}
+				inCh := fanIn(doneCh, genChs)
+				genChs = genChs[:0]
 
-func (c *Client) Start(pollInterval time.Duration, reportInterval time.Duration) error {
-	ticker := time.NewTicker(pollInterval)
-	reportTicker := time.NewTicker(reportInterval)
-	defer ticker.Stop()
-	defer reportTicker.Stop()
-
-	var metrics []models.Metrics
-
-	for {
-		select {
-		case <-ticker.C:
-			log.Println("Collecting metrics")
-			metrics = c.collectMetrics()
-
-		case <-reportTicker.C:
-			log.Println("Reporting metrics")
-
-			batch := make([]models.Metrics, 0, c.batchSize)
-			for _, metric := range metrics {
-				batch = append(batch, metric)
-
-				if len(batch) == c.batchSize {
-					if err := c.sendMetricBatchJSON(batch); err != nil {
-						log.Println(err.Error())
+				go func(channel <-chan models.Metrics) {
+					for i := range channel {
+						select {
+						case <-doneCh:
+							return
+						case ch <- i:
+						}
 					}
-					batch = batch[:0]
-				}
-			}
-			if err := c.sendMetricBatchJSON(batch); err != nil {
-				log.Println(err.Error())
+				}(inCh)
 			}
 		}
+	}()
+
+	return ch
+}
+
+func (c *Client) sendWorker(id int, batchedCh <-chan []models.Metrics, results chan<- string) {
+	for batch := range batchedCh {
+		res := fmt.Sprintf("#%d: success", id)
+
+		err := c.sendBatchJSON(batch)
+		if err != nil {
+			res = fmt.Sprintf("#%d: fail, %s", id, err.Error())
+		}
+
+		results <- res
 	}
+}
+
+func (c *Client) Start() error {
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+
+	metricCh := c.collect(doneCh)
+	batchedCh := batched(metricCh, c.config.BatchSize)
+
+	results := make(chan string)
+	for w := range c.config.RateLimit {
+		go c.sendWorker(w, batchedCh, results)
+	}
+
+	for res := range results {
+		log.Println(res)
+	}
+	close(results)
+
+	return nil
 
 }
 
@@ -306,22 +285,28 @@ func (c *Client) send(req *http.Request) (int, error) {
 	buf := bytes.NewBuffer(nil)
 	_, err := io.Copy(buf, req.Body)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("copy not ok, %w", err)
 	}
 
 	r, err := http.NewRequest(req.Method, req.URL.String(), buf)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("request not ok, %w", err)
+	}
+
+	hash, err := c.hashUp(buf.Bytes())
+	if err != nil {
+		return 0, fmt.Errorf("hash not ok, %w", err)
 	}
 
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
+	r.Header.Set("HashSHA256", hash)
 
 	resp, err := c.httpClient.Do(r)
 
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("http not ok, %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -348,4 +333,17 @@ func newGZipRequest(method string, url string, body []byte) (*http.Request, erro
 	}
 
 	return request, nil
+}
+
+func (c *Client) hashUp(body []byte) (string, error) {
+	if c.config.Key == "" {
+		return "", nil
+	}
+
+	h := hmac.New(sha256.New, []byte(c.config.Key))
+	if _, err := h.Write(body); err != nil {
+		return "", fmt.Errorf("failed to hash message, %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
 }

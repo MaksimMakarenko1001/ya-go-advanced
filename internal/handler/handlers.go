@@ -134,6 +134,7 @@ func DoGetJSONResponse(srv GetService) http.HandlerFunc {
 		resp, err := json.Marshal(*metric)
 		if err != nil {
 			WriteError(w, fmt.Errorf("convert to get response not ok, %w", err))
+			return
 		}
 
 		WriteJSONResult(w, resp)
