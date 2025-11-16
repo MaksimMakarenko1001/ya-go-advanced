@@ -28,16 +28,21 @@ func (cfg *Config) LoadConfig(envPrefix string) {
 }
 
 func (cfg *Config) loadFromArg() {
+	var options struct {
+		pool   int
+		report int
+	}
+
 	flag.StringVar(&cfg.Address, "a", `localhost:8080`, "agent net address")
-	flag.DurationVar(&cfg.PollInterval, "p", 2, "pool interval in seconds")
-	flag.DurationVar(&cfg.ReportInterval, "r", 10, "report interval in seconds")
+	flag.IntVar(&options.pool, "p", 2, "pool interval in seconds")
+	flag.IntVar(&options.report, "r", 10, "report interval in seconds")
 	flag.StringVar(&cfg.Key, "k", "", "hash key")
 	flag.IntVar(&cfg.RateLimit, "l", 5, "num threads work concurrently")
 
 	flag.Parse()
 
-	cfg.PollInterval = time.Second * cfg.PollInterval
-	cfg.ReportInterval = time.Second * cfg.ReportInterval
+	cfg.PollInterval = time.Second * time.Duration(options.pool)
+	cfg.ReportInterval = time.Second * time.Duration(options.report)
 
 }
 
