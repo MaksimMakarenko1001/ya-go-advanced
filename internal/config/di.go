@@ -1,9 +1,9 @@
 package config
 
 import (
+	"context"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
@@ -128,48 +128,32 @@ func (di *DI) initAPI() {
 }
 
 func (di *DI) Start() error {
-	config := di.config.HTTP
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	config := di.config.HTTP
 	if di.config.Restore {
 		if err := di.services.dumpMetricService.ReadDump(); err != nil {
 			log.Println(err.Error())
 		}
 	}
 
-	var wg sync.WaitGroup
-	errCh := make(chan error)
-
+	var optMiddlewares []handler.Middleware
 	if di.config.StoreInterval > 0 {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			ticker := time.NewTicker(di.config.StoreInterval)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-errCh:
-					return
-				case <-ticker.C:
-					if err := di.services.dumpMetricService.WriteDump(); err != nil {
-						log.Println(err.Error())
-					}
-				}
-			}
-		}()
+		go di.doDump(ctx)
+	} else {
+		optMiddlewares = append(optMiddlewares, di.api.external.WithSync)
 	}
 
 	di.api.external.HandlePing(di.infr.db)
 	di.api.external.HandleIndex()
-	di.api.external.HandleGet()
-	di.api.external.HandleGetJSON()
 
-	withSync := di.config.StoreInterval == 0
-	di.api.external.HandleUpdate()
-	di.api.external.HandleUpdateJSON(withSync)
-	di.api.external.HandleUpdateBatchJSON(withSync)
+	di.api.external.HandleGet(handler.MiddlewareMetricName)
+	di.api.external.HandleUpdate(handler.MiddlewareMetricName)
+
+	di.api.external.HandleGetJSON()
+	di.api.external.HandleUpdateJSON(optMiddlewares...)
+	di.api.external.HandleUpdateBatchJSON(optMiddlewares...)
 
 	err := http.ListenAndServe(config.Address, handler.Conveyor(
 		di.api.external,
@@ -178,10 +162,23 @@ func (di *DI) Start() error {
 		di.api.external.WithHash,
 	))
 
-	errCh <- err
-	wg.Wait()
-
 	di.infr.db.Close()
 
 	return err
+}
+
+func (di *DI) doDump(ctx context.Context) {
+	ticker := time.NewTicker(di.config.StoreInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := di.services.dumpMetricService.WriteDump(); err != nil {
+				log.Println(err.Error())
+			}
+		}
+	}
 }

@@ -86,60 +86,61 @@ func (api API) HandlePing(db *db.PGConnect) {
 	})
 }
 
-func (api API) HandleIndex() {
-	api.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		handler := DoListMetricResponse(api.listMetricService.Do)
-		handler.ServeHTTP(w, r)
+func (api API) HandleIndex(middlewares ...Middleware) {
+	api.router.Group(func(r chi.Router) {
+		r.Use(middlewares...)
+		r.Get("/", func(w http.ResponseWriter, rq *http.Request) {
+			DoListMetricResponse(api.listMetricService.Do).ServeHTTP(w, rq)
+		})
 	})
 }
 
-func (api API) HandleUpdate() {
-	api.router.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
-		handler := DoUpdateFlatResponse(
-			api.updateFlatService.Do, chi.URLParam(r, "type"), chi.URLParam(r, "name"), chi.URLParam(r, "value"),
-		)
-
-		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
+func (api API) HandleUpdate(middlewares ...Middleware) {
+	api.router.Group(func(r chi.Router) {
+		r.Use(middlewares...)
+		r.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, rq *http.Request) {
+			DoUpdateFlatResponse(
+				api.updateFlatService.Do, chi.URLParam(rq, "type"), chi.URLParam(rq, "name"), chi.URLParam(rq, "value"),
+			).ServeHTTP(w, rq)
+		})
 	})
 }
 
-func (api API) HandleUpdateJSON(withSync bool) {
-	api.router.Post("/update/", func(w http.ResponseWriter, r *http.Request) {
-		var handler http.Handler = DoUpdateJSONResponse(api.updateService.Do)
-
-		if withSync {
-			handler = api.WithSync(handler)
-		}
-		handler.ServeHTTP(w, r)
+func (api API) HandleUpdateJSON(middlewares ...Middleware) {
+	api.router.Group(func(r chi.Router) {
+		r.Use(middlewares...)
+		r.Post("/update/", func(w http.ResponseWriter, rq *http.Request) {
+			DoUpdateJSONResponse(api.updateService.Do).ServeHTTP(w, rq)
+		})
 	})
 }
 
-func (api API) HandleUpdateBatchJSON(withSync bool) {
-	api.router.Post("/updates/", func(w http.ResponseWriter, r *http.Request) {
-		var handler http.Handler = DoUpdateBatchJSONResponse(api.updateBatchService.Do)
-
-		if withSync {
-			handler = api.WithSync(handler)
-		}
-		handler.ServeHTTP(w, r)
+func (api API) HandleUpdateBatchJSON(middlewares ...Middleware) {
+	api.router.Group(func(r chi.Router) {
+		r.Use(middlewares...)
+		r.Post("/updates/", func(w http.ResponseWriter, rq *http.Request) {
+			DoUpdateBatchJSONResponse(api.updateBatchService.Do).ServeHTTP(w, rq)
+		})
 	})
 }
 
-func (api API) HandleGet() {
-	api.router.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
-		handler := DoGetFlatResponse(
-			api.getFlatService.Do, chi.URLParam(r, "type"), chi.URLParam(r, "name"),
-		)
-
-		Conveyor(handler, MiddlewareMetricName).ServeHTTP(w, r)
+func (api API) HandleGet(middlewares ...Middleware) {
+	api.router.Group(func(r chi.Router) {
+		r.Use(middlewares...)
+		r.Get("/value/{type}/{name}", func(w http.ResponseWriter, rq *http.Request) {
+			DoGetFlatResponse(
+				api.getFlatService.Do, chi.URLParam(rq, "type"), chi.URLParam(rq, "name"),
+			).ServeHTTP(w, rq)
+		})
 	})
 }
 
-func (api API) HandleGetJSON() {
-	api.router.Post("/value/", func(w http.ResponseWriter, r *http.Request) {
-		var handler http.Handler = DoGetJSONResponse(api.getService.Do)
-
-		handler.ServeHTTP(w, r)
+func (api API) HandleGetJSON(middlewares ...Middleware) {
+	api.router.Group(func(r chi.Router) {
+		r.Use(middlewares...)
+		r.Post("/value/", func(w http.ResponseWriter, rq *http.Request) {
+			DoGetJSONResponse(api.getService.Do).ServeHTTP(w, rq)
+		})
 	})
 }
 
