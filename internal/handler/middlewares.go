@@ -19,7 +19,7 @@ var allowMetricType = map[string]struct{}{
 	pkg.MetricTypeCounter: {},
 }
 
-type Middleware func(next http.Handler) http.Handler
+type Middleware = func(next http.Handler) http.Handler
 
 func Conveyor(h http.Handler, middlewares ...Middleware) http.Handler {
 	for _, middleware := range middlewares {
