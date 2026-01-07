@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"context"
+	"sync"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
@@ -13,6 +14,7 @@ type Encoder interface {
 }
 
 type Repository struct {
+	mtx        sync.RWMutex
 	collection map[string]*Item
 	encoder    Encoder
 }
@@ -25,6 +27,9 @@ func New(encoder Encoder) *Repository {
 }
 
 func (r *Repository) AddUpdateBatch(ctx context.Context, counters []entities.CounterItem, gauges []entities.GaugeItem) (ok bool, err error) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+
 	var intZero int64
 	for _, counter := range counters {
 		name := counter.MetricName
@@ -62,8 +67,10 @@ func (r *Repository) AddUpdateBatch(ctx context.Context, counters []entities.Cou
 }
 
 func (r *Repository) Add(ctx context.Context, item entities.CounterItem) (bool, error) {
-	var zero int64
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 
+	var zero int64
 	name := item.MetricName
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, IntValue: &zero}
@@ -79,8 +86,10 @@ func (r *Repository) Add(ctx context.Context, item entities.CounterItem) (bool, 
 }
 
 func (r *Repository) Update(ctx context.Context, item entities.GaugeItem) (bool, error) {
-	var zero float64
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 
+	var zero float64
 	name := item.MetricName
 	if _, ok := r.collection[name]; !ok {
 		r.collection[name] = &Item{Name: name, FloatValue: &zero}
@@ -96,6 +105,9 @@ func (r *Repository) Update(ctx context.Context, item entities.GaugeItem) (bool,
 }
 
 func (r *Repository) GetCounter(ctx context.Context, name string) (*entities.CounterItem, bool, error) {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+
 	item, ok := r.collection[name]
 	if !ok || !item.hasIntValue() {
 		return nil, false, nil
@@ -108,6 +120,9 @@ func (r *Repository) GetCounter(ctx context.Context, name string) (*entities.Cou
 }
 
 func (r *Repository) GetGauge(ctx context.Context, name string) (*entities.GaugeItem, bool, error) {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+
 	item, ok := r.collection[name]
 	if !ok || !item.hasFloatValue() {
 		return nil, false, nil
@@ -120,6 +135,9 @@ func (r *Repository) GetGauge(ctx context.Context, name string) (*entities.Gauge
 }
 
 func (r *Repository) List(ctx context.Context) (listMetricService.MetricData, error) {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+
 	counters := make([]entities.CounterItem, 0, len(r.collection))
 	gauges := make([]entities.GaugeItem, 0, len(r.collection))
 
@@ -145,8 +163,10 @@ func (r *Repository) List(ctx context.Context) (listMetricService.MetricData, er
 }
 
 func (r *Repository) Load(b []byte) error {
-	var data []Item
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
 
+	var data []Item
 	err := r.encoder.Decode(b, &data)
 	if err != nil {
 		return err
@@ -165,6 +185,9 @@ func (r *Repository) Load(b []byte) error {
 }
 
 func (r *Repository) Save() ([]byte, error) {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+
 	data := make([]Item, 0, len(r.collection))
 
 	for _, item := range r.collection {
