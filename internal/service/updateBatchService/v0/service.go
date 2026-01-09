@@ -26,7 +26,7 @@ func New(
 	}
 }
 
-func (srv *Service) Do(ctx context.Context, metrics []models.Metrics) (err error) {
+func (srv *Service) Do(ctx context.Context, ipAddress string, metrics []models.Metrics) (err error) {
 	if len(metrics) == 0 {
 		return nil
 	}
@@ -68,7 +68,7 @@ func (srv *Service) Do(ctx context.Context, metrics []models.Metrics) (err error
 		}
 	}
 
-	ok, err := srv.metricRepository.AddUpdateBatch(ctx, pkg.ValuesToList(counters), pkg.ValuesToList(gauges))
+	ok, err := srv.metricRepository.AddUpdateBatch(ctx, ipAddress, pkg.ValuesToList(counters), pkg.ValuesToList(gauges))
 	if err != nil {
 		return pkg.ErrInternalServer.SetInfo(err.Error())
 	}
