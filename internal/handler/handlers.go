@@ -29,9 +29,9 @@ const html = `<html>
 </html>`
 
 type (
-	UpdateFlatService  func(ctx context.Context, metricType, metricName, metricValue string) (err error)
-	UpdateBatchService func(ctx context.Context, metrics []models.Metrics) (err error)
-	UpdateService      func(ctx context.Context, metric models.Metrics) (err error)
+	UpdateFlatService  func(ctx context.Context, ipAddress string, metricType, metricName, metricValue string) (err error)
+	UpdateBatchService func(ctx context.Context, ipAddress string, metrics []models.Metrics) (err error)
+	UpdateService      func(ctx context.Context, ipAddress string, metric models.Metrics) (err error)
 
 	GetGaugeService   func(ctx context.Context, metricName string) (metricValue *float64, err error)
 	GetCounterService func(ctx context.Context, metricName string) (metricValue *int64, err error)
@@ -58,7 +58,7 @@ func DoListMetricResponse(srv ListMetricService) http.HandlerFunc {
 
 func DoUpdateFlatResponse(srv UpdateFlatService, metricType, metricName, metricValue string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := srv(r.Context(), metricType, metricName, metricValue); err != nil {
+		if err := srv(r.Context(), r.RemoteAddr, metricType, metricName, metricValue); err != nil {
 			WriteError(w, err)
 			return
 		}
@@ -76,7 +76,7 @@ func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 			return
 		}
 
-		if err := srv(r.Context(), metric); err != nil {
+		if err := srv(r.Context(), r.RemoteAddr, metric); err != nil {
 			WriteError(w, err)
 			return
 		}
@@ -95,7 +95,7 @@ func DoUpdateBatchJSONResponse(srv UpdateBatchService) http.HandlerFunc {
 			return
 		}
 
-		if err := srv(r.Context(), metrics); err != nil {
+		if err := srv(r.Context(), r.RemoteAddr, metrics); err != nil {
 			WriteError(w, err)
 			return
 		}

@@ -29,19 +29,19 @@ func New(
 	}
 }
 
-func (srv *Service) Do(ctx context.Context, metric models.Metrics) (err error) {
+func (srv *Service) Do(ctx context.Context, ipAddress string, metric models.Metrics) (err error) {
 	switch metric.MType {
 	case pkg.MetricTypeCounter:
 		if metric.Delta == nil {
 			return errInvalidMetricValue
 		}
-		return srv.updateCounterService.Do(ctx, metric.ID, *metric.Delta)
+		return srv.updateCounterService.Do(ctx, ipAddress, metric.ID, *metric.Delta)
 
 	case pkg.MetricTypeGauge:
 		if metric.Value == nil {
 			return errInvalidMetricValue
 		} else {
-			return srv.updateGaugeService.Do(ctx, metric.ID, *metric.Value)
+			return srv.updateGaugeService.Do(ctx, ipAddress, metric.ID, *metric.Value)
 		}
 
 	default:

@@ -19,11 +19,11 @@ func New(metricRepo MetricRepository) *Service {
 }
 
 func (srv *Service) Do(
-	ctx context.Context, metricName string, metricValue int64,
+	ctx context.Context, ipAddress string, metricName string, metricValue int64,
 ) (err error) {
 	ts := time.Now()
 
-	ok, err := srv.metricRepository.Add(ctx, entities.CounterItem{
+	ok, err := srv.metricRepository.Add(ctx, ipAddress, entities.CounterItem{
 		MetricType:  pkg.MetricTypeCounter,
 		MetricName:  metricName,
 		MetricValue: metricValue,
