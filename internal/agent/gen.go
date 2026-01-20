@@ -13,9 +13,9 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
-func genCounters(pollCount *int64) []models.Metrics {
+func genCounters(pollCount *int64) []models.Metric {
 	*pollCount++
-	return []models.Metrics{
+	return []models.Metric{
 		{
 			ID:    "PollCount",
 			MType: pkg.MetricTypeCounter,
@@ -24,9 +24,9 @@ func genCounters(pollCount *int64) []models.Metrics {
 	}
 }
 
-func genGauge(memStats *runtime.MemStats) []models.Metrics {
+func genGauge(memStats *runtime.MemStats) []models.Metric {
 	runtime.ReadMemStats(memStats)
-	return []models.Metrics{
+	return []models.Metric{
 		{
 			ID:    "Alloc",
 			MType: pkg.MetricTypeGauge,
@@ -170,15 +170,15 @@ func genGauge(memStats *runtime.MemStats) []models.Metrics {
 	}
 }
 
-func genExtraGauge() []models.Metrics {
+func genExtraGauge() []models.Metric {
 	var errs []error
-	slice := make([]models.Metrics, 0, 3)
+	slice := make([]models.Metric, 0, 3)
 
 	v, err := mem.VirtualMemory()
 	if err != nil {
 		errs = append(errs, err)
 	} else {
-		slice = append(slice, []models.Metrics{
+		slice = append(slice, []models.Metric{
 			{
 				ID:    "TotalMemory",
 				MType: pkg.MetricTypeGauge,
@@ -196,7 +196,7 @@ func genExtraGauge() []models.Metrics {
 	if err != nil {
 		errs = append(errs, err)
 	} else {
-		slice = append(slice, models.Metrics{
+		slice = append(slice, models.Metric{
 			ID:    "CPUutilization1",
 			MType: pkg.MetricTypeGauge,
 			Value: &cpuPercentages[0],
@@ -209,8 +209,8 @@ func genExtraGauge() []models.Metrics {
 	return slice
 }
 
-func gen(doneCh <-chan struct{}, input []models.Metrics) <-chan models.Metrics {
-	ch := make(chan models.Metrics)
+func gen(doneCh <-chan struct{}, input []models.Metric) <-chan models.Metric {
+	ch := make(chan models.Metric)
 	go func() {
 		defer close(ch)
 		for _, i := range input {
@@ -225,14 +225,14 @@ func gen(doneCh <-chan struct{}, input []models.Metrics) <-chan models.Metrics {
 	return ch
 }
 
-func fanIn(doneCh <-chan struct{}, inChs []<-chan models.Metrics) <-chan models.Metrics {
+func fanIn(doneCh <-chan struct{}, inChs []<-chan models.Metric) <-chan models.Metric {
 	var wg sync.WaitGroup
-	ch := make(chan models.Metrics)
+	ch := make(chan models.Metric)
 
 	for _, inCh := range inChs {
 		wg.Add(1)
 
-		go func(channel <-chan models.Metrics) {
+		go func(channel <-chan models.Metric) {
 			defer wg.Done()
 
 			for i := range channel {
@@ -253,9 +253,9 @@ func fanIn(doneCh <-chan struct{}, inChs []<-chan models.Metrics) <-chan models.
 	return ch
 }
 
-func batched(inCh <-chan models.Metrics, size int) <-chan []models.Metrics {
-	ch := make(chan []models.Metrics)
-	batch := make([]models.Metrics, 0, size)
+func batched(inCh <-chan models.Metric, size int) <-chan []models.Metric {
+	ch := make(chan []models.Metric)
+	batch := make([]models.Metric, 0, size)
 
 	go func() {
 		defer close(ch)

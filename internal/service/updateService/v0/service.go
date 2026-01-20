@@ -29,7 +29,7 @@ func New(
 	}
 }
 
-func (srv *Service) Do(ctx context.Context, ipAddress string, metric models.Metrics) (err error) {
+func (srv *Service) Do(ctx context.Context, ipAddress string, metric models.Metric) (err error) {
 	switch metric.MType {
 	case pkg.MetricTypeCounter:
 		if metric.Delta == nil {
