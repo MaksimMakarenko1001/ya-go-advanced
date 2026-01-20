@@ -30,13 +30,13 @@ const html = `<html>
 
 type (
 	UpdateFlatService  func(ctx context.Context, ipAddress string, metricType, metricName, metricValue string) (err error)
-	UpdateBatchService func(ctx context.Context, ipAddress string, metrics []models.Metrics) (err error)
-	UpdateService      func(ctx context.Context, ipAddress string, metric models.Metrics) (err error)
+	UpdateBatchService func(ctx context.Context, ipAddress string, metrics []models.Metric) (err error)
+	UpdateService      func(ctx context.Context, ipAddress string, metric models.Metric) (err error)
 
 	GetGaugeService   func(ctx context.Context, metricName string) (metricValue *float64, err error)
 	GetCounterService func(ctx context.Context, metricName string) (metricValue *int64, err error)
 	GetFlatService    func(ctx context.Context, metricType, metricName string) (metricValue string, err error)
-	GetService        func(ctx context.Context, metricType, metricName string) (metric *models.Metrics, err error)
+	GetService        func(ctx context.Context, metricType, metricName string) (metric *models.Metric, err error)
 
 	ListMetricService func(ctx context.Context, template string) (index string, err error)
 )
@@ -69,7 +69,7 @@ func DoUpdateFlatResponse(srv UpdateFlatService, metricType, metricName, metricV
 
 func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var metric models.Metrics
+		var metric models.Metric
 
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -88,7 +88,7 @@ func DoUpdateJSONResponse(srv UpdateService) http.HandlerFunc {
 
 func DoUpdateBatchJSONResponse(srv UpdateBatchService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var metrics []models.Metrics
+		var metrics []models.Metric
 
 		if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -119,7 +119,7 @@ func DoGetFlatResponse(srv GetFlatService, metricType, metricName string) http.H
 
 func DoGetJSONResponse(srv GetService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var request models.Metrics
+		var request models.Metric
 
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

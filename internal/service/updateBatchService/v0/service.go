@@ -26,7 +26,7 @@ func New(
 	}
 }
 
-func (srv *Service) Do(ctx context.Context, ipAddress string, metrics []models.Metrics) (err error) {
+func (srv *Service) Do(ctx context.Context, ipAddress string, metrics []models.Metric) (err error) {
 	if len(metrics) == 0 {
 		return nil
 	}
