@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS metric.gauges (
 
 CREATE TABLE metric.logs (
 	id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-	source TEXT NOT NULL,
+	destination TEXT NOT NULL,
     ip_address TEXT NOT NULL,
     metric_name TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
@@ -93,7 +93,7 @@ end;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION metric.counters_upsert(_ip_address text, _items json)
+CREATE OR REPLACE FUNCTION metric.counters_upsert(_items json)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -114,11 +114,6 @@ begin
                 set metric_value = c.metric_value + excluded.metric_value,
                     updated_at = excluded.updated_at
             returning c.metric_name
-        ),
-        logs_cte as (
-            insert into metric.logs (source, ip_address, metric_name, created_at)
-                select 'metric.counters_upsert', _ip_address, src.metric_name, now()
-                    from ins_cte as src
         )
     select json_agg(ins_cte.metric_name) from ins_cte
 	    into _res;
@@ -128,7 +123,7 @@ end;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION metric.gauges_upsert(_ip_address text, _items json)
+CREATE OR REPLACE FUNCTION metric.gauges_upsert(_items json)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -149,11 +144,6 @@ begin
                 set metric_value = excluded.metric_value,
                     updated_at = excluded.updated_at
             returning g.metric_name
-        ),
-        logs_cte as (
-            insert into metric.logs (source, ip_address, metric_name, created_at)
-                select 'metric.gauges_upsert', _ip_address, src.metric_name, now()
-                    from ins_cte as src
         )
     select json_agg(ins_cte.metric_name) from ins_cte
 	    into _res;
@@ -163,7 +153,7 @@ end;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION metric.metrics_upsert(_ip_address text, _counter_items json, _gauge_items json)
+CREATE OR REPLACE FUNCTION metric.metrics_upsert(_counter_items json, _gauge_items json)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -171,9 +161,9 @@ declare
     _res json;
 begin
     with cte(metric_name) as (
-        select * from json_array_elements(metric.counters_upsert(_ip_address, _counter_items))
+        select * from json_array_elements(metric.counters_upsert(_counter_items))
         union all
-        select * from json_array_elements(metric.gauges_upsert(_ip_address, _gauge_items))
+        select * from json_array_elements(metric.gauges_upsert(_gauge_items))
     )
     select json_agg(cte.metric_name) from cte
 	    into _res;

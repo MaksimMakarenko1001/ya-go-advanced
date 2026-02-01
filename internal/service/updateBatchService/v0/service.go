@@ -26,16 +26,16 @@ func New(
 	}
 }
 
-func (srv *Service) Do(ctx context.Context, ipAddress string, metrics []models.Metric) (err error) {
-	if len(metrics) == 0 {
+func (srv *Service) Do(ctx context.Context, request models.Request) (err error) {
+	if len(request.Metrics) == 0 {
 		return nil
 	}
 
 	ts := time.Now()
-	counters := make(map[string]entities.CounterItem, len(metrics))
-	gauges := make(map[string]entities.GaugeItem, len(metrics))
+	counters := make(map[string]entities.CounterItem, len(request.Metrics))
+	gauges := make(map[string]entities.GaugeItem, len(request.Metrics))
 
-	for _, metric := range metrics {
+	for _, metric := range request.Metrics {
 		switch metric.MType {
 		case pkg.MetricTypeCounter:
 			if metric.Delta == nil {
@@ -68,7 +68,7 @@ func (srv *Service) Do(ctx context.Context, ipAddress string, metrics []models.M
 		}
 	}
 
-	ok, err := srv.metricRepository.AddUpdateBatch(ctx, ipAddress, pkg.ValuesToList(counters), pkg.ValuesToList(gauges))
+	ok, err := srv.metricRepository.AddUpdateBatch(ctx, pkg.ValuesToList(counters), pkg.ValuesToList(gauges), []entities.Outbox{}, "")
 	if err != nil {
 		return pkg.ErrInternalServer.SetInfo(err.Error())
 	}

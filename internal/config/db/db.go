@@ -55,6 +55,18 @@ func (pg *PGConnect) Ping(ctx context.Context) error {
 	return backoff(fn)(ctx)
 }
 
+func (pg *PGConnect) QueryNoResult(
+	ctx context.Context, query string, args ...any,
+) error {
+	fn := func(ctx context.Context) error {
+		_, err := pg.db.ExecContext(ctx, query, args...)
+		return err
+	}
+	backoff := pg.backoff.WithLinear(time.Second, time.Second*2)
+
+	return backoff(fn)(ctx)
+}
+
 func (pg *PGConnect) QueryWithOneResult(
 	ctx context.Context, dst any, query string, args ...any,
 ) error {

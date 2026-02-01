@@ -25,7 +25,9 @@ func New(conn *db.PGConnect, inmemory *inmemory.Repository) *Repository {
 	}
 }
 
-func (r *Repository) AddUpdateBatch(ctx context.Context, ipAddress string, counters []entities.CounterItem, gauges []entities.GaugeItem) (ok bool, err error) {
+func (r *Repository) AddUpdateBatch(
+	ctx context.Context, counters []entities.CounterItem, gauges []entities.GaugeItem, outboxes []entities.Outbox, outboxSegment string,
+) (ok bool, err error) {
 	if !r.isAlive {
 		return r.inmemory.AddUpdateBatch(ctx, counters, gauges)
 	}
@@ -33,19 +35,16 @@ func (r *Repository) AddUpdateBatch(ctx context.Context, ipAddress string, count
 	var updatedNames []string
 	count := len(counters) + len(gauges)
 
-	err = r.conn.QueryWithOneResultJSON(
-		ctx,
+	err = r.conn.QueryWithOneResultJSON(ctx,
 		&updatedNames,
-		"select metric.metrics_upsert(_ip_address => $1, _counter_items => $2, _gauge_items => $3)",
-		ipAddress,
-		counters,
-		gauges,
+		"select metric.metrics_upsert(_counter_items => $1, _gauge_items => $2, _outbox_items => $3, _outbox_segment => $4)",
+		counters, gauges, outboxes, outboxSegment,
 	)
 
 	return len(updatedNames) == count, err
 }
 
-func (r *Repository) Add(ctx context.Context, ipAddress string, item entities.CounterItem) (ok bool, err error) {
+func (r *Repository) Add(ctx context.Context, item entities.CounterItem) (ok bool, err error) {
 	if !r.isAlive {
 		return r.inmemory.Add(ctx, item)
 	}
@@ -55,15 +54,14 @@ func (r *Repository) Add(ctx context.Context, ipAddress string, item entities.Co
 	err = r.conn.QueryWithOneResultJSON(
 		ctx,
 		&updatedNames,
-		"select metric.counters_upsert(_ip_address => $1, _items => $2)",
-		ipAddress,
+		"select metric.counters_upsert(_items => $1)",
 		[]entities.CounterItem{item},
 	)
 
 	return len(updatedNames) > 0, err
 }
 
-func (r *Repository) Update(ctx context.Context, ipAddress string, item entities.GaugeItem) (ok bool, err error) {
+func (r *Repository) Update(ctx context.Context, item entities.GaugeItem) (ok bool, err error) {
 	if !r.isAlive {
 		return r.inmemory.Update(ctx, item)
 	}
@@ -73,8 +71,7 @@ func (r *Repository) Update(ctx context.Context, ipAddress string, item entities
 	err = r.conn.QueryWithOneResultJSON(
 		ctx,
 		&updatedNames,
-		"select metric.gauges_upsert(_ip_address => $1, _items => $2)",
-		ipAddress,
+		"select metric.gauges_upsert(_items => $1)",
 		[]entities.GaugeItem{item},
 	)
 

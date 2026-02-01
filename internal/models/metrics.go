@@ -17,3 +17,8 @@ type Metric struct {
 	Value *float64 `json:"value,omitempty"`
 	Hash  string   `json:"hash,omitempty"`
 }
+
+type Request struct {
+	IPAddress string   `json:"-"`
+	Metrics   []Metric `json:"metrics"`
+}
