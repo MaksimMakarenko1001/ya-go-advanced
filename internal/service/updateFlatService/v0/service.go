@@ -30,21 +30,21 @@ func New(
 }
 
 func (srv *Service) Do(
-	ctx context.Context, ipAddress string, metricType, metricName, metricValue string,
+	ctx context.Context, metricType, metricName, metricValue string,
 ) (err error) {
 	switch metricType {
 	case pkg.MetricTypeCounter:
 		if valueInt, err := strconv.ParseInt(metricValue, 10, 64); err != nil {
 			return errInvalidMetricValue
 		} else {
-			return srv.updateCounterService.Do(ctx, ipAddress, metricName, valueInt)
+			return srv.updateCounterService.Do(ctx, metricName, valueInt)
 		}
 
 	case pkg.MetricTypeGauge:
 		if valueFloat, err := strconv.ParseFloat(metricValue, 64); err != nil {
 			return errInvalidMetricValue
 		} else {
-			return srv.updateGaugeService.Do(ctx, ipAddress, metricName, valueFloat)
+			return srv.updateGaugeService.Do(ctx, metricName, valueFloat)
 		}
 
 	default:

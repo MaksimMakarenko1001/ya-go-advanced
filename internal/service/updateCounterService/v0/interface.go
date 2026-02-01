@@ -7,5 +7,5 @@ import (
 )
 
 type MetricRepository interface {
-	Add(ctx context.Context, ipAddress string, item entities.CounterItem) (ok bool, err error)
+	Add(ctx context.Context, item entities.CounterItem) (ok bool, err error)
 }

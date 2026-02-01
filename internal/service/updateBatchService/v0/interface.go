@@ -7,5 +7,7 @@ import (
 )
 
 type MetricRepository interface {
-	AddUpdateBatch(ctx context.Context, ipAddress string, counters []entities.CounterItem, gauges []entities.GaugeItem) (ok bool, err error)
+	AddUpdateBatch(ctx context.Context, counters []entities.CounterItem, gauges []entities.GaugeItem,
+		outboxes []entities.Outbox, outboxSegment string,
+	) (ok bool, err error)
 }
