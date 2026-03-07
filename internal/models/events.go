@@ -6,13 +6,18 @@ import (
 
 type OutboxDestination string
 
-type FileAuditEvent struct {
+const (
+	FileOutboxDestination OutboxDestination = "file"
+	UrlOutboxDestination  OutboxDestination = "url"
+)
+
+type FileEvent struct {
 	TS        time.Time `json:"ts"`
 	Metrics   []string  `json:"metrics"`
 	IPAddress string    `json:"ip_address"`
 }
 
-type UrlAuditEvent struct {
+type UrlEvent struct {
 	TS        time.Time `json:"ts"`
 	Metrics   []string  `json:"metrics"`
 	IPAddress string    `json:"ip_address"`

@@ -55,7 +55,7 @@ begin
             update outbox.outbox as upd set
                 lock_until = now() + '30sec'::interval
             from cte as src
-                where upd.id = any(src.id)
+                where upd.id = src.id
         )
     select json_agg(src.*)
         into _res
@@ -66,31 +66,24 @@ begin
 end;
 $$;
 
-CREATE OR REPLACE FUNCTION outbox.outbox_set_failed(_ids text[], _segment text) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-begin
-    perform pg_advisory_xact_lock(hashtext('outbox_'||_segment));
-
-    update outbox.outbox as upd set
-        lock_until = now()
-        where upd.id = any(_ids)
-    ;
-end;
-$$;
-
-CREATE OR REPLACE FUNCTION outbox.outbox_set_completed(_ids text[], _segment text) RETURNS void
+CREATE OR REPLACE FUNCTION outbox.outbox_commit(_ok_ids text[], _failed_ids text[], _segment text) RETURNS void
     LANGUAGE plpgsql
     AS $$
 begin
     perform pg_advisory_xact_lock(hashtext('outbox_'||_segment));
 
     delete from outbox.outbox as del
-        where del.id = any(_ids)
+        where del.id = any(_ok_ids)
+    ;
+
+    update outbox.outbox as upd set
+        lock_until = now()
+        where upd.id = any(_failed_ids)
     ;
 end;
 $$;
 
+DROP FUNCTION metric.metrics_upsert(json, json);
 CREATE OR REPLACE FUNCTION metric.metrics_upsert(_counter_items json, _gauge_items json, _outbox_items json = NULL::json, _outbox_segment text = ''::text)
  RETURNS json
  LANGUAGE plpgsql
@@ -108,7 +101,7 @@ begin
         from cte
     ;
 
-    perform outbox.outbox_add_new(_outbox_items, _segment)
+    perform outbox.outbox_add_new(_outbox_items, _outbox_segment);
 
     return coalesce(_res, '[]'::json);
 end;

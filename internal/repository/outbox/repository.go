@@ -21,7 +21,7 @@ func (r *Repository) OutboxGetNext(
 ) (resp []entities.Outbox, err error) {
 	err = r.conn.QueryWithOneResultJSON(ctx,
 		&resp,
-		"select outbox.outbox_get_next(_destination => $1, _segment text => $2, _limit => $3)",
+		"select outbox.outbox_get_next(_destination => $1, _segment => $2, _limit => $3)",
 		destination, segment, limit,
 	)
 	if err != nil {
@@ -31,16 +31,13 @@ func (r *Repository) OutboxGetNext(
 	return resp, nil
 }
 
-func (r *Repository) OutboxSetFailed(ctx context.Context, ids []entities.OutboxID, segment string) (err error) {
-	return r.conn.QueryNoResult(ctx,
-		"select outbox.outbox_set_failed(_ids => $1, _segment text => $2)",
-		ids, segment,
-	)
-}
+func (r *Repository) OutboxCommit(ctx context.Context, okIds []entities.OutboxID, failedIds []entities.OutboxID, segment string) (err error) {
+	if len(okIds) == 0 && len(failedIds) == 0 {
+		return nil
+	}
 
-func (r *Repository) OutboxSetCompleted(ctx context.Context, ids []entities.OutboxID, segment string) (err error) {
 	return r.conn.QueryNoResult(ctx,
-		"select outbox.outbox_set_completed(_ids => $1, _segment text => $2)",
-		ids, segment,
+		"select outbox.outbox_commit(_ok_ids => $1, _failed_ids => $2, _segment => $3)",
+		okIds, failedIds, segment,
 	)
 }

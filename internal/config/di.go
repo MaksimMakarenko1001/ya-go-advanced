@@ -9,9 +9,12 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/handler"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/audit/file"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/encode"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/outbox"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/storage/inmemory"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/storage/pg"
+	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
@@ -24,6 +27,7 @@ import (
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateFlatService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateGaugeService/v0"
 	updateService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/worker/sworker"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg/backoff"
 )
 
@@ -33,6 +37,8 @@ type DI struct {
 		encoder         *encode.JSONEncode
 		inmemoryStorage *inmemory.Repository
 		pgStorage       *pg.Repository
+		outbox          *outbox.Repository
+		fileAuditor     *file.Repository
 	}
 	services struct {
 		included struct {
@@ -53,6 +59,11 @@ type DI struct {
 
 		dumpMetricService *dumpMetricService.Service
 		hashService       *hashService.Service
+
+		auditFileService *auditFileService.Service
+	}
+	workers struct {
+		auditFile *sworker.SimpleWorker
 	}
 	api struct {
 		external *handler.API
@@ -69,6 +80,7 @@ func (di *DI) Init(envPrefix string) {
 	di.initDB()
 	di.initRepositories()
 	di.initServices()
+	di.initWorkers()
 	di.initAPI()
 }
 
@@ -87,6 +99,8 @@ func (di *DI) initRepositories() {
 	di.repositories.encoder = encode.New()
 	di.repositories.inmemoryStorage = inmemory.New(di.repositories.encoder)
 	di.repositories.pgStorage = pg.New(di.infr.db, di.repositories.inmemoryStorage)
+	di.repositories.outbox = outbox.New(di.infr.db)
+	di.repositories.fileAuditor = file.New(di.config.AuditFile)
 }
 
 func (di *DI) initServices() {
@@ -111,6 +125,16 @@ func (di *DI) initServices() {
 
 	di.services.dumpMetricService = dumpMetricService.New(di.config.FileStoragePath, di.repositories.inmemoryStorage)
 	di.services.hashService = hashService.New(di.config.HashService)
+
+	di.services.auditFileService = auditFileService.New(di.config.AuditFileService, di.repositories.outbox, di.repositories.fileAuditor)
+}
+
+func (di *DI) initWorkers() {
+	di.workers.auditFile = sworker.New(
+		di.config.Worker.AuditFile,
+		"audit_file",
+		di.services.auditFileService.Do,
+	)
 }
 
 func (di *DI) initAPI() {
@@ -130,6 +154,8 @@ func (di *DI) initAPI() {
 func (di *DI) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	di.workers.auditFile.Start(ctx)
 
 	config := di.config.HTTP
 	if di.config.Restore {
