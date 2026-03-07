@@ -9,24 +9,43 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
+	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/auditFileService/v0"
 	hashService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/hashService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/worker/sworker"
 	"github.com/caarlos0/env/v6"
 )
 
 type diConfig struct {
-	HTTP            HTTPServerConfig   `envPrefix:"HTTP_"`
-	Logger          logger.Config      `envPrefix:"LOGGER_"`
-	StoreInterval   time.Duration      `env:"STORE_INTERVAL"`
-	FileStoragePath string             `env:"FILE_STORAGE_PATH"`
-	Restore         bool               `env:"RESTORE"`
-	Database        db.Config          `envPrefix:"DATABASE"`
-	HashService     hashService.Config `envPrefix:"HASH_SERVICE_"`
+	HTTP             HTTPServerConfig        `envPrefix:"HTTP_"`
+	Logger           logger.Config           `envPrefix:"LOGGER_"`
+	StoreInterval    time.Duration           `env:"STORE_INTERVAL"`
+	FileStoragePath  string                  `env:"FILE_STORAGE_PATH"`
+	Restore          bool                    `env:"RESTORE"`
+	Database         db.Config               `envPrefix:"DATABASE"`
+	HashService      hashService.Config      `envPrefix:"HASH_SERVICE_"`
+	AuditFileService auditFileService.Config `envPrefix:"AUDIT_FILE_SERVICE_"`
+	Worker           struct {
+		AuditFile sworker.Config `envPrefix:"AUDIT_FILE_"`
+	} `envPrefix:"WORKER_"`
+	AuditFile string `env:"AUDIT_FILE"`
 }
 
 func (cfg *diConfig) loadConfig(envPrefix string) {
+	cfg.loadDefaults(envPrefix)
 	cfg.loadFromArg()
 	cfg.loadFromEnv(envPrefix)
 	cfg.loadFromEnvToPassTests() // meets tests required
+
+	if cfg.AuditFile == "" {
+		cfg.AuditFileService.AuditEnabled = false
+	}
+}
+
+func (cfg *diConfig) loadDefaults(envPrefix string) {
+	if err := env.Parse(cfg, env.Options{Prefix: envPrefix}); err != nil {
+		log.Printf("env defaults not ok, %s\n", err.Error())
+		return
+	}
 }
 
 func (cfg *diConfig) loadFromArg() {
@@ -40,6 +59,7 @@ func (cfg *diConfig) loadFromArg() {
 	flag.BoolVar(&cfg.Restore, "r", false, "restore dump file on start")
 	flag.StringVar(&cfg.Database.DSN, "d", "", "data source name")
 	flag.StringVar(&cfg.HashService.Key, "k", "", "hash key")
+	flag.StringVar(&cfg.AuditFile, "audit-file", "", "audit file name")
 
 	flag.Parse()
 
@@ -70,6 +90,9 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 	if restore := config.Restore; restore {
 		cfg.Restore = restore
 	}
+	if auditFile := config.AuditFile; auditFile != "" {
+		cfg.AuditFile = auditFile
+	}
 	if dsn, err := config.Database.ToDSN(); err != nil {
 		log.Printf("db config not ok, %s\n", err.Error())
 	} else {
@@ -97,6 +120,9 @@ func (cfg *diConfig) loadFromEnvToPassTests() {
 	}
 	if key := os.Getenv("KEY"); key != "" {
 		cfg.HashService.Key = key
+	}
+	if auditFile := os.Getenv("AUDIT_FILE"); auditFile != "" {
+		cfg.AuditFile = auditFile
 	}
 }
 

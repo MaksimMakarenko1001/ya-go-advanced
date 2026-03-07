@@ -34,6 +34,7 @@ func (srv *Service) Do(ctx context.Context, request models.Request) (err error) 
 	ts := time.Now()
 	counters := make(map[string]entities.CounterItem, len(request.Metrics))
 	gauges := make(map[string]entities.GaugeItem, len(request.Metrics))
+	metrics := make([]string, 0, len(request.Metrics))
 
 	for _, metric := range request.Metrics {
 		switch metric.MType {
@@ -66,9 +67,30 @@ func (srv *Service) Do(ctx context.Context, request models.Request) (err error) 
 		default:
 			return errInvalidMetricType
 		}
+
+		metrics = append(metrics, metric.ID)
 	}
 
-	ok, err := srv.metricRepository.AddUpdateBatch(ctx, pkg.ValuesToList(counters), pkg.ValuesToList(gauges), []entities.Outbox{}, "")
+	outboxes := []entities.Outbox{
+		{
+			Destination: string(models.FileOutboxDestination),
+			Payload: pkg.JsonMust(models.FileEvent{
+				TS:        ts,
+				Metrics:   metrics,
+				IPAddress: request.IPAddress,
+			}),
+		},
+		{
+			Destination: string(models.UrlOutboxDestination),
+			Payload: pkg.JsonMust(models.UrlEvent{
+				TS:        ts,
+				Metrics:   metrics,
+				IPAddress: request.IPAddress,
+			}),
+		},
+	}
+
+	ok, err := srv.metricRepository.AddUpdateBatch(ctx, pkg.ValuesToList(counters), pkg.ValuesToList(gauges), outboxes, "")
 	if err != nil {
 		return pkg.ErrInternalServer.SetInfo(err.Error())
 	}
