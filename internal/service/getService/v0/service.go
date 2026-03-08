@@ -28,8 +28,8 @@ func New(
 	}
 }
 
-func (srv *Service) Do(ctx context.Context, metricType, metricName string) (metric *models.Metrics, err error) {
-	resp := models.Metrics{
+func (srv *Service) Do(ctx context.Context, metricType, metricName string) (metric *models.Metric, err error) {
+	resp := models.Metric{
 		ID:    metricName,
 		MType: metricType,
 	}

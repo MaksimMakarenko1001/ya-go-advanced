@@ -25,7 +25,9 @@ func New(conn *db.PGConnect, inmemory *inmemory.Repository) *Repository {
 	}
 }
 
-func (r *Repository) AddUpdateBatch(ctx context.Context, counters []entities.CounterItem, gauges []entities.GaugeItem) (ok bool, err error) {
+func (r *Repository) AddUpdateBatch(
+	ctx context.Context, counters []entities.CounterItem, gauges []entities.GaugeItem, outboxes []entities.Outbox, outboxSegment string,
+) (ok bool, err error) {
 	if !r.isAlive {
 		return r.inmemory.AddUpdateBatch(ctx, counters, gauges)
 	}
@@ -33,12 +35,10 @@ func (r *Repository) AddUpdateBatch(ctx context.Context, counters []entities.Cou
 	var updatedNames []string
 	count := len(counters) + len(gauges)
 
-	err = r.conn.QueryWithOneResultJSON(
-		ctx,
+	err = r.conn.QueryWithOneResultJSON(ctx,
 		&updatedNames,
-		"select metric.upsert_metrics(_counter_items => $1, _gauge_items => $2)",
-		counters,
-		gauges,
+		"select metric.metrics_upsert(_counter_items => $1, _gauge_items => $2, _outbox_items => $3, _outbox_segment => $4)",
+		counters, gauges, outboxes, outboxSegment,
 	)
 
 	return len(updatedNames) == count, err
@@ -134,7 +134,7 @@ func (r *Repository) List(ctx context.Context) (resp listMetricService.MetricDat
 	err = r.conn.QueryWithOneResultJSON(
 		ctx,
 		&resp,
-		"select metric.list_metrics()",
+		"select metric.metrics_list()",
 	)
 	return resp, err
 }

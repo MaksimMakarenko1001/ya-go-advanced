@@ -43,7 +43,7 @@ func NewClient(cfg Config) *Client {
 	}
 }
 
-func (c *Client) sendBatchJSON(batch []models.Metrics) (err error) {
+func (c *Client) sendBatchJSON(batch []models.Metric) (err error) {
 	if len(batch) == 0 {
 		return nil
 	}
@@ -116,7 +116,7 @@ func (c *Client) sendGaugeMetricJSON(metricName string, value float64) (err erro
 	}
 
 	var buf bytes.Buffer
-	err = json.NewEncoder(&buf).Encode(models.Metrics{
+	err = json.NewEncoder(&buf).Encode(models.Metric{
 		ID:    metricName,
 		MType: pkg.MetricTypeGauge,
 		Value: &value,
@@ -174,7 +174,7 @@ func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err erro
 	}
 
 	var buf bytes.Buffer
-	err = json.NewEncoder(&buf).Encode(models.Metrics{
+	err = json.NewEncoder(&buf).Encode(models.Metric{
 		ID:    metricName,
 		MType: pkg.MetricTypeCounter,
 		Delta: &value,
@@ -201,11 +201,11 @@ func (c *Client) sendCounterMetricJSON(metricName string, value int64) (err erro
 	return nil
 }
 
-func (c *Client) collect(doneCh <-chan struct{}) <-chan models.Metrics {
-	ch := make(chan models.Metrics)
-	genChs := []<-chan models.Metrics{}
+func (c *Client) collect(doneCh <-chan struct{}) <-chan models.Metric {
+	ch := make(chan models.Metric)
+	genChs := []<-chan models.Metric{}
 
-	collection := []models.Metrics{}
+	collection := []models.Metric{}
 	poolTicker := time.NewTicker(c.config.PollInterval)
 	reportTicker := time.NewTicker(c.config.ReportInterval)
 
@@ -231,7 +231,7 @@ func (c *Client) collect(doneCh <-chan struct{}) <-chan models.Metrics {
 				inCh := fanIn(doneCh, genChs)
 				genChs = genChs[:0]
 
-				go func(channel <-chan models.Metrics) {
+				go func(channel <-chan models.Metric) {
 					for i := range channel {
 						select {
 						case <-doneCh:
@@ -247,7 +247,7 @@ func (c *Client) collect(doneCh <-chan struct{}) <-chan models.Metrics {
 	return ch
 }
 
-func (c *Client) sendWorker(id int, batchedCh <-chan []models.Metrics, results chan<- string) {
+func (c *Client) sendWorker(id int, batchedCh <-chan []models.Metric, results chan<- string) {
 	for batch := range batchedCh {
 		res := fmt.Sprintf("#%d: success", id)
 
