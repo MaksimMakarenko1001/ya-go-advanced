@@ -10,11 +10,13 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/handler"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/audit/file"
+	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/audit/remote"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/encode"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/outbox"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/storage/inmemory"
 	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/storage/pg"
 	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/auditFileService/v0"
+	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/auditRemoteService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
@@ -39,6 +41,7 @@ type DI struct {
 		pgStorage       *pg.Repository
 		outbox          *outbox.Repository
 		fileAuditor     *file.Repository
+		remoteAuditor   *remote.Repository
 	}
 	services struct {
 		included struct {
@@ -60,10 +63,12 @@ type DI struct {
 		dumpMetricService *dumpMetricService.Service
 		hashService       *hashService.Service
 
-		auditFileService *auditFileService.Service
+		auditFileService   *auditFileService.Service
+		auditRemoteService *auditRemoteService.Service
 	}
 	workers struct {
-		auditFile *sworker.SimpleWorker
+		auditFile   *sworker.SimpleWorker
+		auditRemote *sworker.SimpleWorker
 	}
 	api struct {
 		external *handler.API
@@ -101,6 +106,7 @@ func (di *DI) initRepositories() {
 	di.repositories.pgStorage = pg.New(di.infr.db, di.repositories.inmemoryStorage)
 	di.repositories.outbox = outbox.New(di.infr.db)
 	di.repositories.fileAuditor = file.New(di.config.AuditFile)
+	di.repositories.remoteAuditor = remote.New(di.config.AuditRemote)
 }
 
 func (di *DI) initServices() {
@@ -127,6 +133,7 @@ func (di *DI) initServices() {
 	di.services.hashService = hashService.New(di.config.HashService)
 
 	di.services.auditFileService = auditFileService.New(di.config.AuditFileService, di.repositories.outbox, di.repositories.fileAuditor)
+	di.services.auditRemoteService = auditRemoteService.New(di.config.AuditRemoteService, di.repositories.outbox, di.repositories.remoteAuditor)
 }
 
 func (di *DI) initWorkers() {
@@ -134,6 +141,11 @@ func (di *DI) initWorkers() {
 		di.config.Worker.AuditFile,
 		"audit_file",
 		di.services.auditFileService.Do,
+	)
+	di.workers.auditRemote = sworker.New(
+		di.config.Worker.AuditRemote,
+		"audit_remote",
+		di.services.auditRemoteService.Do,
 	)
 }
 
@@ -156,6 +168,7 @@ func (di *DI) Start() error {
 	defer cancel()
 
 	di.workers.auditFile.Start(ctx)
+	di.workers.auditRemote.Start(ctx)
 
 	config := di.config.HTTP
 	if di.config.Restore {
