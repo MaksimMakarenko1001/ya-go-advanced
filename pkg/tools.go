@@ -15,7 +15,7 @@ func ToPtr[T any](value T) *T {
 	return &value
 }
 
-func JsonMust(v any) json.RawMessage {
+func JSONMust(v any) json.RawMessage {
 	b, err := json.Marshal(v)
 	if err != nil {
 		panic(err)
