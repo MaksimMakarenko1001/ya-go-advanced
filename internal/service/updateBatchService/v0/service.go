@@ -81,8 +81,8 @@ func (srv *Service) Do(ctx context.Context, request models.Request) (err error) 
 			}),
 		},
 		{
-			Destination: string(models.UrlOutboxDestination),
-			Payload: pkg.JsonMust(models.UrlEvent{
+			Destination: string(models.RemoteOutboxDestination),
+			Payload: pkg.JsonMust(models.RemoteEvent{
 				TS:        ts,
 				Metrics:   metrics,
 				IPAddress: request.IPAddress,

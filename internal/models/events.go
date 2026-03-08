@@ -7,8 +7,8 @@ import (
 type OutboxDestination string
 
 const (
-	FileOutboxDestination OutboxDestination = "file"
-	UrlOutboxDestination  OutboxDestination = "url"
+	FileOutboxDestination   OutboxDestination = "file"
+	RemoteOutboxDestination OutboxDestination = "remote"
 )
 
 type FileEvent struct {
@@ -17,7 +17,7 @@ type FileEvent struct {
 	IPAddress string    `json:"ip_address"`
 }
 
-type UrlEvent struct {
+type RemoteEvent struct {
 	TS        time.Time `json:"ts"`
 	Metrics   []string  `json:"metrics"`
 	IPAddress string    `json:"ip_address"`
