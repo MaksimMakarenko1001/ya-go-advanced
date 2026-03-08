@@ -74,7 +74,7 @@ func (srv *Service) Do(ctx context.Context, request models.Request) (err error) 
 	outboxes := []entities.Outbox{
 		{
 			Destination: string(models.FileOutboxDestination),
-			Payload: pkg.JsonMust(models.FileEvent{
+			Payload: pkg.JSONMust(models.FileEvent{
 				TS:        ts,
 				Metrics:   metrics,
 				IPAddress: request.IPAddress,
@@ -82,7 +82,7 @@ func (srv *Service) Do(ctx context.Context, request models.Request) (err error) 
 		},
 		{
 			Destination: string(models.RemoteOutboxDestination),
-			Payload: pkg.JsonMust(models.RemoteEvent{
+			Payload: pkg.JSONMust(models.RemoteEvent{
 				TS:        ts,
 				Metrics:   metrics,
 				IPAddress: request.IPAddress,
