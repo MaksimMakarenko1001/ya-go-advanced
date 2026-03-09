@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/worker"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/worker"
 )
 
 type SimpleWorker struct {
