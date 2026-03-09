@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/url"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg/backoff"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg/backoff"
 )
 
 func ClassifyHTTPError(err error) backoff.ErrorClassification {
