@@ -3,7 +3,7 @@ package db
 import (
 	"errors"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg/backoff"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg/backoff"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 )

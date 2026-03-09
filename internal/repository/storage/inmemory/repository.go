@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
-	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/entities"
+	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/listMetricService/v0"
 )
 
 type Encoder interface {

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg/backoff"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg/backoff"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"

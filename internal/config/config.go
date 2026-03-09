@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
-	hashService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/hashService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
+	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
 	"github.com/caarlos0/env/v6"
 )
 

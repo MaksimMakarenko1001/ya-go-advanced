@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/models"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
 )
 
 const html = `<html>
