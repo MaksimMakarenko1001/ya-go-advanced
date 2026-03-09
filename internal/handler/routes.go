@@ -9,16 +9,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
-	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/dumpMetricService/v0"
-	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getFlatService/v0"
-	getService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getService/v0"
-	hashService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/hashService/v0"
-	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
-	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateBatchService/v0"
-	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateFlatService/v0"
-	updateService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
+	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
+	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
+	getService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getService/v0"
+	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
+	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/listMetricService/v0"
+	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateBatchService/v0"
+	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateFlatService/v0"
+	updateService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateService/v0"
 )
 
 type Route struct {

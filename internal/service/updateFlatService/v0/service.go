@@ -4,9 +4,9 @@ import (
 	"context"
 	"strconv"
 
-	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateCounterService/v0"
-	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/updateGaugeService/v0"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateCounterService/v0"
+	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateGaugeService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
 )
 
 var (

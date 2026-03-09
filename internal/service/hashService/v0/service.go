@@ -6,7 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
 )
 
 type Service struct {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/entities"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/models"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
 )
 
 var (

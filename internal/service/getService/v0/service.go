@@ -3,10 +3,10 @@ package v0
 import (
 	"context"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/models"
-	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
-	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/models"
+	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getCounterService/v0"
+	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getGaugeService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
 )
 
 var (

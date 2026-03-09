@@ -3,7 +3,7 @@ package v0
 import (
 	"context"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
 )
 
 type Service struct {

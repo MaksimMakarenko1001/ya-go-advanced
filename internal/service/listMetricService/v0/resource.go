@@ -1,6 +1,6 @@
 package v0
 
-import "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
+import "github.com/MaksimMakarenko1001/ya-go-advanced/internal/entities"
 
 type MetricItem struct {
 	Name  string `json:"name"`

@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/logger"
-	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/auditFileService/v0"
-	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/auditRemoteService/v0"
-	hashService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/hashService/v0"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/worker/sworker"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
+	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
+	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
+	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/worker/sworker"
 	"github.com/caarlos0/env/v6"
 )
 
