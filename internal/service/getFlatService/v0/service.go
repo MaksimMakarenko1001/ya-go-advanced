@@ -4,9 +4,9 @@ import (
 	"context"
 	"strconv"
 
-	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getCounterService/v0"
-	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/getGaugeService/v0"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/pkg"
+	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getCounterService/v0"
+	getGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getGaugeService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
 )
 
 type Service struct {

@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config"
 )
 
 func main() {

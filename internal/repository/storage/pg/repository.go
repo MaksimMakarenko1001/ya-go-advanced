@@ -5,10 +5,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/config/db"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/entities"
-	"github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/repository/storage/inmemory"
-	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced.git/internal/service/listMetricService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/entities"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/storage/inmemory"
+	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/listMetricService/v0"
 )
 
 type Repository struct {
