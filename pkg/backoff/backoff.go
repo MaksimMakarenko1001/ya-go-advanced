@@ -1,3 +1,4 @@
+// Package backoff provides retry mechanisms for operations with configurable error classification.
 package backoff
 
 import (
@@ -7,22 +8,27 @@ import (
 	"time"
 )
 
+// ErrorClassification defines whether an error is retriable.
 type ErrorClassification int
+
+// retried represents a function that can be retried.
 type retried func(ctx context.Context) (err error)
 
 const (
-	// NonRetriable - операцию не следует повторять
+	// NonRetriable indicates the operation should not be retried.
 	NonRetriable ErrorClassification = iota
 
-	// Retriable - операцию можно повторить
+	// Retriable indicates the operation can be retried.
 	Retriable
 )
 
+// Backoff manages retry logic with configurable error classification.
 type Backoff struct {
 	maxRetries      uint16
 	errClassifyFunc func(err error) ErrorClassification
 }
 
+// NewBackoff creates a new Backoff instance with the specified maximum retries and error classification function.
 func NewBackoff(
 	maxRetries uint16,
 	errClassifyFunc func(err error) ErrorClassification,
@@ -33,6 +39,8 @@ func NewBackoff(
 	}
 }
 
+// WithLinear returns a decorator that retries the function with linear backoff.
+// The initial delay is t0 and increases by dt on each retry.
 func (r *Backoff) WithLinear(t0 time.Duration, dt time.Duration) func(retried) retried {
 	return func(fn retried) retried {
 		return func(ctx context.Context) error {
