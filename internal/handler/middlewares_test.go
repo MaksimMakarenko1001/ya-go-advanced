@@ -8,9 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/handler"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/handler"
 )
 
 const testMessage = `Got you`
