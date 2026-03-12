@@ -26,12 +26,11 @@ func New(
 	}
 }
 
-func (srv *Service) Do(ctx context.Context, request models.Request) (err error) {
+func (srv *Service) Do(ctx context.Context, ts time.Time, request models.Request) (err error) {
 	if len(request.Metrics) == 0 {
 		return nil
 	}
 
-	ts := time.Now()
 	counters := make(map[string]entities.CounterItem, len(request.Metrics))
 	gauges := make(map[string]entities.GaugeItem, len(request.Metrics))
 	metrics := make([]string, 0, len(request.Metrics))
