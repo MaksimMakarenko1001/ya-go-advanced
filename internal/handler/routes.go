@@ -40,8 +40,8 @@ type API struct {
 
 	listMetricService *listMetricService.Service
 
-	dumpMetricService *dumpMetricService.Service
-	hashService       *hashService.Service
+	dumpSyncMetricService *dumpMetricService.Service
+	hashService           *hashService.Service
 }
 
 func New(
@@ -52,20 +52,20 @@ func New(
 	getFlatService *getFlatService.Service,
 	getService *getService.Service,
 	listMetricService *listMetricService.Service,
-	dumpMetricService *dumpMetricService.Service,
+	dumpSyncMetricService *dumpMetricService.Service,
 	hashService *hashService.Service,
 ) *API {
 	return &API{
-		router:             chi.NewRouter(),
-		logger:             logger,
-		updateFlatService:  updateFlatService,
-		updateBatchService: updateBatchService,
-		updateService:      updateService,
-		getFlatService:     getFlatService,
-		getService:         getService,
-		listMetricService:  listMetricService,
-		dumpMetricService:  dumpMetricService,
-		hashService:        hashService,
+		router:                chi.NewRouter(),
+		logger:                logger,
+		updateFlatService:     updateFlatService,
+		updateBatchService:    updateBatchService,
+		updateService:         updateService,
+		getFlatService:        getFlatService,
+		getService:            getService,
+		listMetricService:     listMetricService,
+		dumpSyncMetricService: dumpSyncMetricService,
+		hashService:           hashService,
 	}
 }
 
@@ -73,7 +73,7 @@ func (api API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	api.router.ServeHTTP(w, r)
 }
 
-func (api API) HandlePing(db *db.PGConnect) {
+func (api API) RegisterPing(db *db.PGConnect) {
 	api.router.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 		defer cancel()
@@ -86,58 +86,46 @@ func (api API) HandlePing(db *db.PGConnect) {
 	})
 }
 
-func (api API) HandleIndex(middlewares ...Middleware) {
+func (api API) RegisterHandlers() {
 	api.router.Group(func(r chi.Router) {
-		r.Use(middlewares...)
 		r.Get("/", func(w http.ResponseWriter, rq *http.Request) {
 			DoListMetricResponse(api.listMetricService.Do).ServeHTTP(w, rq)
 		})
 	})
-}
 
-func (api API) HandleUpdate(middlewares ...Middleware) {
 	api.router.Group(func(r chi.Router) {
-		r.Use(middlewares...)
+		r.Use(MiddlewareMetricName)
 		r.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, rq *http.Request) {
 			DoUpdateFlatResponse(
 				api.updateFlatService.Do, chi.URLParam(rq, "type"), chi.URLParam(rq, "name"), chi.URLParam(rq, "value"),
 			).ServeHTTP(w, rq)
 		})
 	})
-}
 
-func (api API) HandleUpdateJSON(middlewares ...Middleware) {
 	api.router.Group(func(r chi.Router) {
-		r.Use(middlewares...)
+		r.Use(api.WithSync)
 		r.Post("/update/", func(w http.ResponseWriter, rq *http.Request) {
 			DoUpdateJSONResponse(api.updateService.Do).ServeHTTP(w, rq)
 		})
 	})
-}
 
-func (api API) HandleUpdateBatchJSON(middlewares ...Middleware) {
 	api.router.Group(func(r chi.Router) {
-		r.Use(middlewares...)
+		r.Use(api.WithSync)
 		r.Post("/updates/", func(w http.ResponseWriter, rq *http.Request) {
 			DoUpdateBatchJSONResponse(api.updateBatchService.Do).ServeHTTP(w, rq)
 		})
 	})
-}
 
-func (api API) HandleGet(middlewares ...Middleware) {
 	api.router.Group(func(r chi.Router) {
-		r.Use(middlewares...)
+		r.Use(MiddlewareMetricName)
 		r.Get("/value/{type}/{name}", func(w http.ResponseWriter, rq *http.Request) {
 			DoGetFlatResponse(
 				api.getFlatService.Do, chi.URLParam(rq, "type"), chi.URLParam(rq, "name"),
 			).ServeHTTP(w, rq)
 		})
 	})
-}
 
-func (api API) HandleGetJSON(middlewares ...Middleware) {
 	api.router.Group(func(r chi.Router) {
-		r.Use(middlewares...)
 		r.Post("/value/", func(w http.ResponseWriter, rq *http.Request) {
 			DoGetJSONResponse(api.getService.Do).ServeHTTP(w, rq)
 		})
@@ -173,7 +161,7 @@ func (api API) WithSync(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 
-		if err := api.dumpMetricService.WriteDump(); err != nil {
+		if err := api.dumpSyncMetricService.WriteDump(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})

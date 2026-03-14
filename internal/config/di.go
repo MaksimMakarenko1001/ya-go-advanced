@@ -60,8 +60,10 @@ type DI struct {
 
 		listMetricService *listMetricService.Service
 
-		dumpMetricService *dumpMetricService.Service
-		hashService       *hashService.Service
+		dumpMetricService     *dumpMetricService.Service
+		dumpSyncMetricService *dumpMetricService.Service
+
+		hashService *hashService.Service
 
 		auditFileService   *auditFileService.Service
 		auditRemoteService *auditRemoteService.Service
@@ -129,7 +131,9 @@ func (di *DI) initServices() {
 
 	di.services.listMetricService = listMetricService.New(di.repositories.pgStorage)
 
-	di.services.dumpMetricService = dumpMetricService.New(di.config.FileStoragePath, di.repositories.inmemoryStorage)
+	di.services.dumpMetricService = dumpMetricService.New(di.config.DumpService, di.config.FileStoragePath, di.repositories.inmemoryStorage)
+	di.services.dumpSyncMetricService = dumpMetricService.New(di.config.DumpSyncService, di.config.FileStoragePath, di.repositories.inmemoryStorage)
+
 	di.services.hashService = hashService.New(di.config.HashService)
 
 	di.services.auditFileService = auditFileService.New(di.config.AuditFileService, di.repositories.outbox, di.repositories.fileAuditor)
@@ -158,7 +162,7 @@ func (di *DI) initAPI() {
 		di.services.getFlatService,
 		di.services.getService,
 		di.services.listMetricService,
-		di.services.dumpMetricService,
+		di.services.dumpSyncMetricService,
 		di.services.hashService,
 	)
 }
@@ -177,22 +181,12 @@ func (di *DI) Start() error {
 		}
 	}
 
-	var optMiddlewares []handler.Middleware
 	if di.config.StoreInterval > 0 {
 		go di.doDump(ctx)
-	} else {
-		optMiddlewares = append(optMiddlewares, di.api.external.WithSync)
 	}
 
-	di.api.external.HandlePing(di.infr.db)
-	di.api.external.HandleIndex()
-
-	di.api.external.HandleGet(handler.MiddlewareMetricName)
-	di.api.external.HandleUpdate(handler.MiddlewareMetricName)
-
-	di.api.external.HandleGetJSON()
-	di.api.external.HandleUpdateJSON(optMiddlewares...)
-	di.api.external.HandleUpdateBatchJSON(optMiddlewares...)
+	di.api.external.RegisterPing(di.infr.db)
+	di.api.external.RegisterHandlers()
 
 	err := http.ListenAndServe(config.Address, handler.Conveyor(
 		di.api.external,
