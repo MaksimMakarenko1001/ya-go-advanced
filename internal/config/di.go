@@ -187,10 +187,10 @@ func (di *DI) Start() error {
 
 	di.api.external.RegisterPing(di.infr.db)
 	di.api.external.RegisterHandlers()
+	di.api.external.RegisterPprof()
 
 	err := http.ListenAndServe(config.Address, handler.Conveyor(
 		di.api.external,
-		di.api.external.WithLogging,
 		handler.MiddlewareCompress,
 		di.api.external.WithHash,
 	))

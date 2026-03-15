@@ -2,6 +2,7 @@ package handler
 
 import (
 	"compress/gzip"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -114,5 +115,22 @@ func MiddlewareCompress(next http.Handler) http.Handler {
 			defer cr.Close()
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+func MiddlewareLocalhost(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		localhost := map[string]struct{}{
+			"localhost": {},
+			"127.0.0.1": {},
+			"[::1]":     {},
+		}
+		if _, ok := localhost[strings.Split(r.Host, ":")[0]]; !ok {
+			// http.NotFound(w, r)
+			http.Error(w, fmt.Sprintf("invalid host, %s", r.Host), http.StatusNotFound)
+			return
+		}
+
+		h.ServeHTTP(w, r)
 	})
 }

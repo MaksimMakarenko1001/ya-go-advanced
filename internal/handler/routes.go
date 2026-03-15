@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/pprof"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -88,12 +89,11 @@ func (api API) RegisterPing(db *db.PGConnect) {
 
 func (api API) RegisterHandlers() {
 	api.router.Group(func(r chi.Router) {
-		r.Get("/", func(w http.ResponseWriter, rq *http.Request) {
-			DoListMetricResponse(api.listMetricService.Do).ServeHTTP(w, rq)
-		})
+		r.Get("/", DoListMetricResponse(api.listMetricService.Do).ServeHTTP)
 	})
 
 	api.router.Group(func(r chi.Router) {
+		r.Use(api.WithLogging)
 		r.Use(MiddlewareMetricName)
 		r.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, rq *http.Request) {
 			DoUpdateFlatResponse(
@@ -103,20 +103,19 @@ func (api API) RegisterHandlers() {
 	})
 
 	api.router.Group(func(r chi.Router) {
+		r.Use(api.WithLogging)
 		r.Use(api.WithSync)
-		r.Post("/update/", func(w http.ResponseWriter, rq *http.Request) {
-			DoUpdateJSONResponse(api.updateService.Do).ServeHTTP(w, rq)
-		})
+		r.Post("/update/", DoUpdateJSONResponse(api.updateService.Do).ServeHTTP)
 	})
 
 	api.router.Group(func(r chi.Router) {
+		r.Use(api.WithLogging)
 		r.Use(api.WithSync)
-		r.Post("/updates/", func(w http.ResponseWriter, rq *http.Request) {
-			DoUpdateBatchJSONResponse(api.updateBatchService.Do).ServeHTTP(w, rq)
-		})
+		r.Post("/updates/", DoUpdateBatchJSONResponse(api.updateBatchService.Do).ServeHTTP)
 	})
 
 	api.router.Group(func(r chi.Router) {
+		r.Use(api.WithLogging)
 		r.Use(MiddlewareMetricName)
 		r.Get("/value/{type}/{name}", func(w http.ResponseWriter, rq *http.Request) {
 			DoGetFlatResponse(
@@ -126,9 +125,8 @@ func (api API) RegisterHandlers() {
 	})
 
 	api.router.Group(func(r chi.Router) {
-		r.Post("/value/", func(w http.ResponseWriter, rq *http.Request) {
-			DoGetJSONResponse(api.getService.Do).ServeHTTP(w, rq)
-		})
+		r.Use(api.WithLogging)
+		r.Post("/value/", DoGetJSONResponse(api.getService.Do).ServeHTTP)
 	})
 }
 
@@ -154,6 +152,24 @@ func (api API) WithLogging(h http.Handler) http.Handler {
 				Body:   resp.Body,
 			},
 		})
+	})
+}
+
+func (api API) RegisterPprof() {
+	api.router.Group(func(r chi.Router) {
+		r.Use(MiddlewareLocalhost)
+		r.Get("/debug/pprof", http.HandlerFunc(pprof.Index))
+		r.Get("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		r.Get("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+		r.Get("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+		r.Get("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
+		r.Get("/debug/pprof/allocs", http.HandlerFunc(pprof.Handler("allocs").ServeHTTP))
+		r.Get("/debug/pprof/block", http.HandlerFunc(pprof.Handler("block").ServeHTTP))
+		r.Get("/debug/pprof/goroutine", http.HandlerFunc(pprof.Handler("goroutine").ServeHTTP))
+		r.Get("/debug/pprof/heap", http.HandlerFunc(pprof.Handler("heap").ServeHTTP))
+		r.Get("/debug/pprof/mutex", http.HandlerFunc(pprof.Handler("mutex").ServeHTTP))
+		r.Get("/debug/pprof/threadcreate", http.HandlerFunc(pprof.Handler("threadcreate").ServeHTTP))
+		r.Post("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 	})
 }
 

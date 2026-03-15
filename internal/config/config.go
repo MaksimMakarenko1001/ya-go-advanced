@@ -47,7 +47,6 @@ func (cfg *diConfig) loadConfig(envPrefix string) {
 	if cfg.StoreInterval > 0 {
 		cfg.DumpSyncService.WriteDumpEnable = false
 	}
-
 	if cfg.AuditFile == "" {
 		cfg.AuditFileService.AuditEnabled = false
 	}
