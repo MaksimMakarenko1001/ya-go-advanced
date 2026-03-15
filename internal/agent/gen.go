@@ -16,18 +16,19 @@ import (
 
 func genCounters(pollCount *int64) []models.Metric {
 	*pollCount++
-	return []models.Metric{
+	slice := []models.Metric{
 		{
 			ID:    "PollCount",
 			MType: pkg.MetricTypeCounter,
-			Delta: pollCount,
+			Delta: pkg.ToPtr(*pollCount),
 		},
 	}
+	return pkg.SliceFilter(slice, func(x models.Metric) bool { return x.Delta != nil })
 }
 
 func genGauge(memStats *runtime.MemStats) []models.Metric {
 	runtime.ReadMemStats(memStats)
-	return []models.Metric{
+	slice := []models.Metric{
 		{
 			ID:    "Alloc",
 			MType: pkg.MetricTypeGauge,
@@ -46,7 +47,7 @@ func genGauge(memStats *runtime.MemStats) []models.Metric {
 		{
 			ID:    "GCCPUFraction",
 			MType: pkg.MetricTypeGauge,
-			Value: &memStats.GCCPUFraction,
+			Value: pkg.ToPtr(memStats.GCCPUFraction),
 		},
 		{
 			ID:    "GCSys",
@@ -169,6 +170,8 @@ func genGauge(memStats *runtime.MemStats) []models.Metric {
 			Value: pkg.ToPtr(rand.Float64()),
 		},
 	}
+
+	return pkg.SliceFilter(slice, func(x models.Metric) bool { return x.Value != nil })
 }
 
 func genExtraGauge() []models.Metric {
@@ -193,21 +196,20 @@ func genExtraGauge() []models.Metric {
 		}...)
 	}
 
-	cpuPercentages, err := cpu.Percent(0, false)
-	if err != nil {
+	if cpuPercentages, err := cpu.Percent(0, false); err != nil {
 		errs = append(errs, err)
-	} else {
+	} else if len(cpuPercentages) > 0 {
 		slice = append(slice, models.Metric{
 			ID:    "CPUutilization1",
 			MType: pkg.MetricTypeGauge,
-			Value: &cpuPercentages[0],
+			Value: pkg.ToPtr(cpuPercentages[0]),
 		})
 	}
 
 	if len(errs) > 0 {
 		log.Printf("gopsutil metrics not ok, %v\n", errors.Join(err))
 	}
-	return slice
+	return pkg.SliceFilter(slice, func(x models.Metric) bool { return x.Value != nil })
 }
 
 func gen(doneCh <-chan struct{}, input []models.Metric) <-chan models.Metric {

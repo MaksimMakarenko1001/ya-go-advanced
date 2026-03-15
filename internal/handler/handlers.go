@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/models"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
@@ -30,7 +31,7 @@ const html = `<html>
 
 type (
 	UpdateFlatService  func(ctx context.Context, metricType, metricName, metricValue string) (err error)
-	UpdateBatchService func(ctx context.Context, request models.Request) (err error)
+	UpdateBatchService func(ctx context.Context, ts time.Time, request models.Request) (err error)
 	UpdateService      func(ctx context.Context, metric models.Metric) (err error)
 
 	GetGaugeService   func(ctx context.Context, metricName string) (metricValue *float64, err error)
@@ -95,7 +96,7 @@ func DoUpdateBatchJSONResponse(srv UpdateBatchService) http.HandlerFunc {
 		}
 
 		req := models.Request{IPAddress: r.RemoteAddr, Metrics: metrics}
-		if err := srv(r.Context(), req); err != nil {
+		if err := srv(r.Context(), time.Now(), req); err != nil {
 			WriteError(w, err)
 			return
 		}

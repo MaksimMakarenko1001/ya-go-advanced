@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/handler"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/models"
@@ -94,7 +95,7 @@ func ExampleDoUpdateJSONResponse() {
 // and returns the updated metrics in JSON format.
 func ExampleDoUpdateBatchJSONResponse() {
 	// Create the handler with the service
-	h := handler.DoUpdateBatchJSONResponse(func(ctx context.Context, request models.Request) (err error) {
+	h := handler.DoUpdateBatchJSONResponse(func(ctx context.Context, ts time.Time, request models.Request) (err error) {
 		return nil
 	})
 

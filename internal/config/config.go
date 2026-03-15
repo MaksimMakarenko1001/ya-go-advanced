@@ -13,6 +13,7 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
 	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
 	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
+	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/worker/sworker"
 )
@@ -25,6 +26,8 @@ type diConfig struct {
 	Restore            bool                      `env:"RESTORE"`
 	Database           db.Config                 `envPrefix:"DATABASE"`
 	HashService        hashService.Config        `envPrefix:"HASH_SERVICE_"`
+	DumpService        dumpMetricService.Config  `envPrefix:"DUMP_SERVICE_"`
+	DumpSyncService    dumpMetricService.Config  `envPrefix:"DUMP_SYNC_SERVICE_"`
 	AuditFileService   auditFileService.Config   `envPrefix:"AUDIT_FILE_SERVICE_"`
 	AuditRemoteService auditRemoteService.Config `envPrefix:"AUDIT_REMOTE_SERVICE_"`
 	Worker             struct {
@@ -41,6 +44,9 @@ func (cfg *diConfig) loadConfig(envPrefix string) {
 	cfg.loadFromEnv(envPrefix)
 	cfg.loadFromEnvToPassTests() // meets tests required
 
+	if cfg.StoreInterval > 0 {
+		cfg.DumpSyncService.WriteDumpEnable = false
+	}
 	if cfg.AuditFile == "" {
 		cfg.AuditFileService.AuditEnabled = false
 	}
