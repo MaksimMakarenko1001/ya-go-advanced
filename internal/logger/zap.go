@@ -12,10 +12,10 @@ type ZapLogger struct {
 	logger *zap.Logger
 }
 
-func New(config Config) *ZapLogger {
+func New(config Config) (*ZapLogger, error) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		panic("cannot initialize zap")
+		return nil, err
 	}
 	logger.Sync()
 
@@ -31,7 +31,7 @@ func New(config Config) *ZapLogger {
 		logger.Panic("log config not ok", zap.Error(err))
 	}
 	logger.Info("zap", zap.String("log level", zl.Level().String()))
-	return &ZapLogger{logger: zl}
+	return &ZapLogger{logger: zl}, nil
 }
 
 func (zl *ZapLogger) LogHTTP(info HTTPInfo) {
