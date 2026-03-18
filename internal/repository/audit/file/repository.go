@@ -4,33 +4,35 @@ import (
 	"context"
 	"errors"
 	"os"
+	"sync"
 )
 
 var errNoFileOpen = errors.New("error no file open")
 
 type Repository struct {
-	fname string
-	file  *os.File
+	mx   *sync.Mutex
+	file *os.File
 }
 
 func New(fname string) *Repository {
-	return &Repository{fname: fname}
-}
-
-func (r *Repository) FileOpen(ctx context.Context) error {
-	file, err := os.OpenFile(r.fname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0664)
+	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0664)
 	if err != nil {
-		return err
+		return &Repository{}
 	}
 
-	r.file = file
-	return nil
+	return &Repository{
+		mx:   &sync.Mutex{},
+		file: file,
+	}
 }
 
 func (r *Repository) FileAppend(ctx context.Context, line []byte) error {
 	if r.file == nil {
 		return errNoFileOpen
 	}
+
+	r.mx.Lock()
+	defer r.mx.Unlock()
 
 	line = append(line, '\n')
 	_, err := r.file.Write(line)

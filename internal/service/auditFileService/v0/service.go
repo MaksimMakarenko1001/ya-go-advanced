@@ -45,11 +45,6 @@ func (srv *Service) Do(ctx context.Context) error {
 		return nil
 	}
 
-	if err := srv.fileRepo.FileOpen(ctx); err != nil {
-		return err
-	}
-	defer srv.fileRepo.FileClose(ctx)
-
 	for _, item := range items {
 		if err := srv.fileRepo.FileAppend(ctx, item.Payload); err != nil {
 			log.Printf("outbox failure {dest=%v, id=%v, err=%v}\n", models.FileOutboxDestination, item.ID, err.Error())

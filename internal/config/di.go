@@ -196,6 +196,7 @@ func (di *DI) Start() error {
 	))
 
 	di.infr.db.Close()
+	di.repositories.fileAuditor.FileClose(context.TODO())
 
 	return err
 }

@@ -13,7 +13,5 @@ type OutboxRepository interface {
 }
 
 type FileRepository interface {
-	FileOpen(ctx context.Context) error
 	FileAppend(ctx context.Context, line []byte) error
-	FileClose(ctx context.Context) error
 }
