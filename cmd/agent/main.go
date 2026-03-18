@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/agent"
 )
@@ -10,7 +11,8 @@ func main() {
 	log.Println("agent starting")
 
 	if err := run(); err != nil {
-		panic(err)
+		log.Fatal(err)
+		os.Exit(1)
 	}
 
 	log.Println("agent stoped")

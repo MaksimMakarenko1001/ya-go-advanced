@@ -29,6 +29,7 @@ import (
 
 type DI struct {
 	config       *diConfig
+	logger       *logger.ZapLogger
 	repositories struct {
 		encoder         *encode.JSONEncode
 		inmemoryStorage *inmemory.Repository
@@ -66,10 +67,19 @@ func (di *DI) Init(envPrefix string) {
 	di.config = &diConfig{}
 	di.config.loadConfig(envPrefix)
 
+	di.InitLogging()
 	di.initDB()
 	di.initRepositories()
 	di.initServices()
 	di.initAPI()
+}
+
+func (di *DI) InitLogging() {
+	var err error
+	di.logger, err = logger.New(di.config.Logger)
+	if err != nil {
+		log.Println("logger init not ok,", err.Error())
+	}
 }
 
 func (di *DI) initDB() {
@@ -115,7 +125,7 @@ func (di *DI) initServices() {
 
 func (di *DI) initAPI() {
 	di.api.external = handler.New(
-		logger.New(di.config.Logger),
+		di.logger,
 		di.services.updateFlatService,
 		di.services.updateBatchService,
 		di.services.updateService,
