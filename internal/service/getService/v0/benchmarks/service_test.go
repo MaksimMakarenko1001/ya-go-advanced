@@ -64,9 +64,11 @@ func BenchmarkGetService(b *testing.B) {
 	h := handler.DoGetJSONResponse(call)
 
 	for b.Loop() {
+		b.StopTimer()
 		request := httptest.NewRequest(http.MethodPost, "/value/", &buf)
 		w := httptest.NewRecorder()
 
+		b.StartTimer()
 		h.ServeHTTP(w, request)
 	}
 }
