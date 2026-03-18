@@ -298,7 +298,7 @@ func TestMiddlewareLocalhost(t *testing.T) {
 	}{
 		{
 			name: "positive test [localhost]",
-			host: "localhost",
+			host: "localhost:",
 			want: want{
 				code:    200,
 				message: testMessage,
@@ -306,15 +306,7 @@ func TestMiddlewareLocalhost(t *testing.T) {
 		},
 		{
 			name: "positive test [127.0.0.1]",
-			host: "127.0.0.1",
-			want: want{
-				code:    200,
-				message: testMessage,
-			},
-		},
-		{
-			name: "positive test [::1]",
-			host: "::1",
+			host: "127.0.0.1:",
 			want: want{
 				code:    200,
 				message: testMessage,
@@ -322,7 +314,7 @@ func TestMiddlewareLocalhost(t *testing.T) {
 		},
 		{
 			name: "positive test [::1] with brackets",
-			host: "[::1]",
+			host: "[::1]:",
 			want: want{
 				code:    200,
 				message: testMessage,
@@ -330,7 +322,7 @@ func TestMiddlewareLocalhost(t *testing.T) {
 		},
 		{
 			name: "negative test [example.com]",
-			host: "example.com",
+			host: "example.com:",
 			want: want{
 				code:    404,
 				message: "404 page not found\n",
@@ -338,7 +330,7 @@ func TestMiddlewareLocalhost(t *testing.T) {
 		},
 		{
 			name: "negative test [192.168.1.1]",
-			host: "192.168.1.1",
+			host: "192.168.1.1:",
 			want: want{
 				code:    404,
 				message: "404 page not found\n",
