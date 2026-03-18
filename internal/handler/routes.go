@@ -5,10 +5,10 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"net/http/pprof"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
@@ -158,18 +158,7 @@ func (api API) WithLogging(h http.Handler) http.Handler {
 func (api API) RegisterPprof() {
 	api.router.Group(func(r chi.Router) {
 		r.Use(MiddlewareLocalhost)
-		r.Get("/debug/pprof", http.HandlerFunc(pprof.Index))
-		r.Get("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-		r.Get("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-		r.Get("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-		r.Get("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
-		r.Get("/debug/pprof/allocs", http.HandlerFunc(pprof.Handler("allocs").ServeHTTP))
-		r.Get("/debug/pprof/block", http.HandlerFunc(pprof.Handler("block").ServeHTTP))
-		r.Get("/debug/pprof/goroutine", http.HandlerFunc(pprof.Handler("goroutine").ServeHTTP))
-		r.Get("/debug/pprof/heap", http.HandlerFunc(pprof.Handler("heap").ServeHTTP))
-		r.Get("/debug/pprof/mutex", http.HandlerFunc(pprof.Handler("mutex").ServeHTTP))
-		r.Get("/debug/pprof/threadcreate", http.HandlerFunc(pprof.Handler("threadcreate").ServeHTTP))
-		r.Post("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+		r.Mount("/debug", middleware.Profiler())
 	})
 }
 
