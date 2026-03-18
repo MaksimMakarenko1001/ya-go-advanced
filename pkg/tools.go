@@ -29,8 +29,8 @@ func ToPtr[T any](value T) *T {
 	return &value
 }
 
-// JSONMust marshals a value to JSON and panics on error.
-func JSONMust(v any) json.RawMessage {
+// MustJSON marshals a value to JSON and panics on error.
+func MustJSON(v any) json.RawMessage {
 	b, err := json.Marshal(v)
 	if err != nil {
 		panic(err)

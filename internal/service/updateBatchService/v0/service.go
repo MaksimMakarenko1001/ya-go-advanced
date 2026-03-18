@@ -73,7 +73,7 @@ func (srv *Service) Do(ctx context.Context, ts time.Time, request models.Request
 	outboxes := []entities.Outbox{
 		{
 			Destination: string(models.FileOutboxDestination),
-			Payload: pkg.JSONMust(models.FileEvent{
+			Payload: pkg.MustJSON(models.FileEvent{
 				TS:        ts,
 				Metrics:   metrics,
 				IPAddress: request.IPAddress,
@@ -81,7 +81,7 @@ func (srv *Service) Do(ctx context.Context, ts time.Time, request models.Request
 		},
 		{
 			Destination: string(models.RemoteOutboxDestination),
-			Payload: pkg.JSONMust(models.RemoteEvent{
+			Payload: pkg.MustJSON(models.RemoteEvent{
 				TS:        ts,
 				Metrics:   metrics,
 				IPAddress: request.IPAddress,
