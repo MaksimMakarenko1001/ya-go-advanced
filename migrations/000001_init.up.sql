@@ -1,4 +1,33 @@
-CREATE OR REPLACE FUNCTION metric.list_metrics()
+CREATE SCHEMA IF NOT EXISTS metric;
+
+CREATE TABLE IF NOT EXISTS metric.counters (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    metric_type TEXT NOT NULL DEFAULT 'counter',
+    metric_name TEXT UNIQUE NOT NULL,
+    metric_value BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS metric.gauges (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    metric_type TEXT NOT NULL DEFAULT 'gauge',
+    metric_name TEXT UNIQUE NOT NULL,
+    metric_value DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE metric.logs (
+	id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	destination TEXT NOT NULL,
+    ip_address TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+	audited_at TIMESTAMPTZ NULL
+);
+
+CREATE OR REPLACE FUNCTION metric.metrics_list()
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -117,6 +146,26 @@ begin
             returning g.metric_name
         )
     select json_agg(ins_cte.metric_name) from ins_cte
+	    into _res;
+
+    return coalesce(_res, '[]'::json);
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION metric.metrics_upsert(_counter_items json, _gauge_items json)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+declare
+    _res json;
+begin
+    with cte(metric_name) as (
+        select * from json_array_elements(metric.counters_upsert(_counter_items))
+        union all
+        select * from json_array_elements(metric.gauges_upsert(_gauge_items))
+    )
+    select json_agg(cte.metric_name) from cte
 	    into _res;
 
     return coalesce(_res, '[]'::json);

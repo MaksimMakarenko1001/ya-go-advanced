@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/entities"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/handler"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getCounterService/v0"
@@ -15,7 +17,6 @@ import (
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateCounterService/v0"
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateFlatService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateGaugeService/v0"
-	"github.com/stretchr/testify/assert"
 )
 
 const html = `<html>

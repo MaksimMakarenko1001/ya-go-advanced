@@ -7,11 +7,12 @@ import (
 	"errors"
 	"time"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg/backoff"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg/backoff"
 )
 
 type PGConnect struct {
@@ -49,6 +50,18 @@ func New(cfg Config, backoff *backoff.Backoff) (conn *PGConnect, err error) {
 func (pg *PGConnect) Ping(ctx context.Context) error {
 	fn := func(ctx context.Context) error {
 		return pg.db.PingContext(ctx)
+	}
+	backoff := pg.backoff.WithLinear(time.Second, time.Second*2)
+
+	return backoff(fn)(ctx)
+}
+
+func (pg *PGConnect) QueryNoResult(
+	ctx context.Context, query string, args ...any,
+) error {
+	fn := func(ctx context.Context) error {
+		_, err := pg.db.ExecContext(ctx, query, args...)
+		return err
 	}
 	backoff := pg.backoff.WithLinear(time.Second, time.Second*2)
 

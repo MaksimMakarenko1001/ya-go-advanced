@@ -8,12 +8,14 @@ import (
 
 type Service struct {
 	mtx              sync.Mutex
+	config           Config
 	fname            string
 	metricRepository MetricRepository
 }
 
-func New(fname string, metricRepo MetricRepository) *Service {
+func New(config Config, fname string, metricRepo MetricRepository) *Service {
 	return &Service{
+		config:           config,
 		fname:            fname,
 		metricRepository: metricRepo,
 	}
@@ -33,6 +35,10 @@ func (srv *Service) ReadDump() error {
 }
 
 func (srv *Service) WriteDump() error {
+	if !srv.config.WriteDumpEnable {
+		return nil
+	}
+
 	srv.mtx.Lock()
 	defer srv.mtx.Unlock()
 

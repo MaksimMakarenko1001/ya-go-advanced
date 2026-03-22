@@ -9,9 +9,14 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/handler"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/audit/file"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/audit/remote"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/encode"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/outbox"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/storage/inmemory"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/storage/pg"
+	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
+	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
@@ -24,6 +29,7 @@ import (
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateFlatService/v0"
 	updateGaugeService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateGaugeService/v0"
 	updateService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateService/v0"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/worker/sworker"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg/backoff"
 )
 
@@ -34,6 +40,9 @@ type DI struct {
 		encoder         *encode.JSONEncode
 		inmemoryStorage *inmemory.Repository
 		pgStorage       *pg.Repository
+		outbox          *outbox.Repository
+		fileAuditor     *file.Repository
+		remoteAuditor   *remote.Repository
 	}
 	services struct {
 		included struct {
@@ -52,8 +61,17 @@ type DI struct {
 
 		listMetricService *listMetricService.Service
 
-		dumpMetricService *dumpMetricService.Service
-		hashService       *hashService.Service
+		dumpMetricService     *dumpMetricService.Service
+		dumpSyncMetricService *dumpMetricService.Service
+
+		hashService *hashService.Service
+
+		auditFileService   *auditFileService.Service
+		auditRemoteService *auditRemoteService.Service
+	}
+	workers struct {
+		auditFile   *sworker.SimpleWorker
+		auditRemote *sworker.SimpleWorker
 	}
 	api struct {
 		external *handler.API
@@ -71,6 +89,7 @@ func (di *DI) Init(envPrefix string) {
 	di.initDB()
 	di.initRepositories()
 	di.initServices()
+	di.initWorkers()
 	di.initAPI()
 }
 
@@ -97,6 +116,9 @@ func (di *DI) initRepositories() {
 	di.repositories.encoder = encode.New()
 	di.repositories.inmemoryStorage = inmemory.New(di.repositories.encoder)
 	di.repositories.pgStorage = pg.New(di.infr.db, di.repositories.inmemoryStorage)
+	di.repositories.outbox = outbox.New(di.infr.db)
+	di.repositories.fileAuditor = file.New(di.config.AuditFile)
+	di.repositories.remoteAuditor = remote.New(di.config.AuditRemote)
 }
 
 func (di *DI) initServices() {
@@ -119,8 +141,26 @@ func (di *DI) initServices() {
 
 	di.services.listMetricService = listMetricService.New(di.repositories.pgStorage)
 
-	di.services.dumpMetricService = dumpMetricService.New(di.config.FileStoragePath, di.repositories.inmemoryStorage)
+	di.services.dumpMetricService = dumpMetricService.New(di.config.DumpService, di.config.FileStoragePath, di.repositories.inmemoryStorage)
+	di.services.dumpSyncMetricService = dumpMetricService.New(di.config.DumpSyncService, di.config.FileStoragePath, di.repositories.inmemoryStorage)
+
 	di.services.hashService = hashService.New(di.config.HashService)
+
+	di.services.auditFileService = auditFileService.New(di.config.AuditFileService, di.repositories.outbox, di.repositories.fileAuditor)
+	di.services.auditRemoteService = auditRemoteService.New(di.config.AuditRemoteService, di.repositories.outbox, di.repositories.remoteAuditor)
+}
+
+func (di *DI) initWorkers() {
+	di.workers.auditFile = sworker.New(
+		di.config.Worker.AuditFile,
+		"audit_file",
+		di.services.auditFileService.Do,
+	)
+	di.workers.auditRemote = sworker.New(
+		di.config.Worker.AuditRemote,
+		"audit_remote",
+		di.services.auditRemoteService.Do,
+	)
 }
 
 func (di *DI) initAPI() {
@@ -132,7 +172,7 @@ func (di *DI) initAPI() {
 		di.services.getFlatService,
 		di.services.getService,
 		di.services.listMetricService,
-		di.services.dumpMetricService,
+		di.services.dumpSyncMetricService,
 		di.services.hashService,
 	)
 }
@@ -141,6 +181,9 @@ func (di *DI) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	di.workers.auditFile.Start(ctx)
+	di.workers.auditRemote.Start(ctx)
+
 	config := di.config.HTTP
 	if di.config.Restore {
 		if err := di.services.dumpMetricService.ReadDump(); err != nil {
@@ -148,31 +191,22 @@ func (di *DI) Start() error {
 		}
 	}
 
-	var optMiddlewares []handler.Middleware
 	if di.config.StoreInterval > 0 {
 		go di.doDump(ctx)
-	} else {
-		optMiddlewares = append(optMiddlewares, di.api.external.WithSync)
 	}
 
-	di.api.external.HandlePing(di.infr.db)
-	di.api.external.HandleIndex()
-
-	di.api.external.HandleGet(handler.MiddlewareMetricName)
-	di.api.external.HandleUpdate(handler.MiddlewareMetricName)
-
-	di.api.external.HandleGetJSON()
-	di.api.external.HandleUpdateJSON(optMiddlewares...)
-	di.api.external.HandleUpdateBatchJSON(optMiddlewares...)
+	di.api.external.RegisterPing(di.infr.db)
+	di.api.external.RegisterHandlers()
+	di.api.external.RegisterPprof()
 
 	err := http.ListenAndServe(config.Address, handler.Conveyor(
 		di.api.external,
-		di.api.external.WithLogging,
 		handler.MiddlewareCompress,
 		di.api.external.WithHash,
 	))
 
 	di.infr.db.Close()
+	di.repositories.fileAuditor.FileClose(context.TODO())
 
 	return err
 }

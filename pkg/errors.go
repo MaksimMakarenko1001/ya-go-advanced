@@ -5,32 +5,38 @@ import (
 	"net/http"
 )
 
+// ErrInternalServer represents a generic internal server error.
 var ErrInternalServer = &Error{
 	Message: "Internal error",
 	Code:    "INTERNAL_SERVER_ERROR",
 	Status:  http.StatusInternalServerError,
 }
 
+// ErrNotFound represents a not found error.
 var ErrNotFound = &Error{
 	Message: "Not found",
 	Code:    "NOT_FOUND",
 	Status:  http.StatusNotFound,
 }
 
+// ErrBadRequest represents a bad request error.
 var ErrBadRequest = &Error{
 	Message: "Bad request",
 	Code:    "BAD_REQUEST",
 	Status:  http.StatusBadRequest,
 }
 
+// allowStatusError defines allowed HTTP status codes for errors.
 var allowStatusError = map[int]struct{}{
 	http.StatusInternalServerError: {},
 	http.StatusNotFound:            {},
 	http.StatusBadRequest:          {},
 }
 
+// ErrorCode represents a unique error code identifier.
 type ErrorCode string
 
+// Error represents an application error with HTTP status code support.
 type Error struct {
 	Message string
 	Code    ErrorCode
@@ -38,6 +44,7 @@ type Error struct {
 	Info    string
 }
 
+// Error returns the string representation of the error.
 func (e *Error) Error() string {
 	if e == nil || e.Code == "" {
 		return ""
@@ -51,6 +58,7 @@ func (e *Error) Error() string {
 
 }
 
+// HTTPStatus returns the HTTP status code for the error.
 func (e *Error) HTTPStatus() int {
 	if e == nil {
 		return http.StatusOK
@@ -61,6 +69,7 @@ func (e *Error) HTTPStatus() int {
 	return e.Status
 }
 
+// SetInfo creates a new error with additional information.
 func (e *Error) SetInfo(s string) *Error {
 	return &Error{
 		Message: e.Message,
@@ -70,6 +79,7 @@ func (e *Error) SetInfo(s string) *Error {
 	}
 }
 
+// SetInfof creates a new error with formatted additional information.
 func (e *Error) SetInfof(s string, v ...any) *Error {
 	return e.SetInfo(fmt.Sprintf(s, v...))
 }

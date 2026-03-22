@@ -116,3 +116,18 @@ func MiddlewareCompress(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func MiddlewareLocalhost(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cond := strings.HasPrefix(r.Host, "localhost:") ||
+			strings.HasPrefix(r.Host, "127.0.0.1:") ||
+			strings.HasPrefix(r.Host, "[::1]:")
+
+		if !cond {
+			http.NotFound(w, r)
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	})
+}
