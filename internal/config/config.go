@@ -7,26 +7,59 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/caarlos0/env/v6"
+
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
+	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
+	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
+	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
-	"github.com/caarlos0/env/v6"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/worker/sworker"
 )
 
 type diConfig struct {
-	HTTP            HTTPServerConfig   `envPrefix:"HTTP_"`
-	Logger          logger.Config      `envPrefix:"LOGGER_"`
-	StoreInterval   time.Duration      `env:"STORE_INTERVAL"`
-	FileStoragePath string             `env:"FILE_STORAGE_PATH"`
-	Restore         bool               `env:"RESTORE"`
-	Database        db.Config          `envPrefix:"DATABASE"`
-	HashService     hashService.Config `envPrefix:"HASH_SERVICE_"`
+	HTTP               HTTPServerConfig          `envPrefix:"HTTP_"`
+	Logger             logger.Config             `envPrefix:"LOGGER_"`
+	StoreInterval      time.Duration             `env:"STORE_INTERVAL"`
+	FileStoragePath    string                    `env:"FILE_STORAGE_PATH"`
+	Restore            bool                      `env:"RESTORE"`
+	Database           db.Config                 `envPrefix:"DATABASE"`
+	HashService        hashService.Config        `envPrefix:"HASH_SERVICE_"`
+	DumpService        dumpMetricService.Config  `envPrefix:"DUMP_SERVICE_"`
+	DumpSyncService    dumpMetricService.Config  `envPrefix:"DUMP_SYNC_SERVICE_"`
+	AuditFileService   auditFileService.Config   `envPrefix:"AUDIT_FILE_SERVICE_"`
+	AuditRemoteService auditRemoteService.Config `envPrefix:"AUDIT_REMOTE_SERVICE_"`
+	Worker             struct {
+		AuditFile   sworker.Config `envPrefix:"AUDIT_FILE_"`
+		AuditRemote sworker.Config `envPrefix:"AUDIT_REMOTE_"`
+	} `envPrefix:"WORKER_"`
+	AuditFile   string `env:"AUDIT_FILE"`
+	AuditRemote string `env:"AUDIT_URL"`
 }
 
 func (cfg *diConfig) loadConfig(envPrefix string) {
+	cfg.loadDefaults(envPrefix)
 	cfg.loadFromArg()
 	cfg.loadFromEnv(envPrefix)
 	cfg.loadFromEnvToPassTests() // meets tests required
+
+	if cfg.StoreInterval > 0 {
+		cfg.DumpSyncService.WriteDumpEnable = false
+	}
+	if cfg.AuditFile == "" {
+		cfg.AuditFileService.AuditEnabled = false
+	}
+	if cfg.AuditRemote == "" {
+		cfg.AuditRemoteService.AuditEnabled = false
+	}
+}
+
+func (cfg *diConfig) loadDefaults(envPrefix string) {
+	if err := env.Parse(cfg, env.Options{Prefix: envPrefix}); err != nil {
+		log.Printf("env defaults not ok, %s\n", err.Error())
+		return
+	}
 }
 
 func (cfg *diConfig) loadFromArg() {
@@ -40,6 +73,8 @@ func (cfg *diConfig) loadFromArg() {
 	flag.BoolVar(&cfg.Restore, "r", false, "restore dump file on start")
 	flag.StringVar(&cfg.Database.DSN, "d", "", "data source name")
 	flag.StringVar(&cfg.HashService.Key, "k", "", "hash key")
+	flag.StringVar(&cfg.AuditFile, "audit-file", "", "audit file name")
+	flag.StringVar(&cfg.AuditRemote, "audit-url", "", "audit full url")
 
 	flag.Parse()
 
@@ -70,6 +105,12 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 	if restore := config.Restore; restore {
 		cfg.Restore = restore
 	}
+	if auditFile := config.AuditFile; auditFile != "" {
+		cfg.AuditFile = auditFile
+	}
+	if auditRemote := config.AuditRemote; auditRemote != "" {
+		cfg.AuditRemote = auditRemote
+	}
 	if dsn, err := config.Database.ToDSN(); err != nil {
 		log.Printf("db config not ok, %s\n", err.Error())
 	} else {
@@ -97,6 +138,12 @@ func (cfg *diConfig) loadFromEnvToPassTests() {
 	}
 	if key := os.Getenv("KEY"); key != "" {
 		cfg.HashService.Key = key
+	}
+	if auditFile := os.Getenv("AUDIT_FILE"); auditFile != "" {
+		cfg.AuditFile = auditFile
+	}
+	if auditRemote := os.Getenv("AUDIT_URL"); auditRemote != "" {
+		cfg.AuditRemote = auditRemote
 	}
 }
 

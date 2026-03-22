@@ -7,26 +7,28 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/models"
-	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/models"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/pkg"
 )
 
-func genCounters(pollCount *int64) []models.Metrics {
+func genCounters(pollCount *int64) []models.Metric {
 	*pollCount++
-	return []models.Metrics{
+	slice := []models.Metric{
 		{
 			ID:    "PollCount",
 			MType: pkg.MetricTypeCounter,
-			Delta: pollCount,
+			Delta: pkg.ToPtr(*pollCount),
 		},
 	}
+	return pkg.SliceFilter(slice, func(x models.Metric) bool { return x.Delta != nil })
 }
 
-func genGauge(memStats *runtime.MemStats) []models.Metrics {
+func genGauge(memStats *runtime.MemStats) []models.Metric {
 	runtime.ReadMemStats(memStats)
-	return []models.Metrics{
+	slice := []models.Metric{
 		{
 			ID:    "Alloc",
 			MType: pkg.MetricTypeGauge,
@@ -45,7 +47,7 @@ func genGauge(memStats *runtime.MemStats) []models.Metrics {
 		{
 			ID:    "GCCPUFraction",
 			MType: pkg.MetricTypeGauge,
-			Value: &memStats.GCCPUFraction,
+			Value: pkg.ToPtr(memStats.GCCPUFraction),
 		},
 		{
 			ID:    "GCSys",
@@ -168,17 +170,19 @@ func genGauge(memStats *runtime.MemStats) []models.Metrics {
 			Value: pkg.ToPtr(rand.Float64()),
 		},
 	}
+
+	return pkg.SliceFilter(slice, func(x models.Metric) bool { return x.Value != nil })
 }
 
-func genExtraGauge() []models.Metrics {
+func genExtraGauge() []models.Metric {
 	var errs []error
-	slice := make([]models.Metrics, 0, 3)
+	slice := make([]models.Metric, 0, 3)
 
 	v, err := mem.VirtualMemory()
 	if err != nil {
 		errs = append(errs, err)
 	} else {
-		slice = append(slice, []models.Metrics{
+		slice = append(slice, []models.Metric{
 			{
 				ID:    "TotalMemory",
 				MType: pkg.MetricTypeGauge,
@@ -192,25 +196,24 @@ func genExtraGauge() []models.Metrics {
 		}...)
 	}
 
-	cpuPercentages, err := cpu.Percent(0, false)
-	if err != nil {
+	if cpuPercentages, err := cpu.Percent(0, false); err != nil {
 		errs = append(errs, err)
-	} else {
-		slice = append(slice, models.Metrics{
+	} else if len(cpuPercentages) > 0 {
+		slice = append(slice, models.Metric{
 			ID:    "CPUutilization1",
 			MType: pkg.MetricTypeGauge,
-			Value: &cpuPercentages[0],
+			Value: pkg.ToPtr(cpuPercentages[0]),
 		})
 	}
 
 	if len(errs) > 0 {
 		log.Printf("gopsutil metrics not ok, %v\n", errors.Join(err))
 	}
-	return slice
+	return pkg.SliceFilter(slice, func(x models.Metric) bool { return x.Value != nil })
 }
 
-func gen(doneCh <-chan struct{}, input []models.Metrics) <-chan models.Metrics {
-	ch := make(chan models.Metrics)
+func gen(doneCh <-chan struct{}, input []models.Metric) <-chan models.Metric {
+	ch := make(chan models.Metric)
 	go func() {
 		defer close(ch)
 		for _, i := range input {
@@ -225,14 +228,14 @@ func gen(doneCh <-chan struct{}, input []models.Metrics) <-chan models.Metrics {
 	return ch
 }
 
-func fanIn(doneCh <-chan struct{}, inChs []<-chan models.Metrics) <-chan models.Metrics {
+func fanIn(doneCh <-chan struct{}, inChs []<-chan models.Metric) <-chan models.Metric {
 	var wg sync.WaitGroup
-	ch := make(chan models.Metrics)
+	ch := make(chan models.Metric)
 
 	for _, inCh := range inChs {
 		wg.Add(1)
 
-		go func(channel <-chan models.Metrics) {
+		go func(channel <-chan models.Metric) {
 			defer wg.Done()
 
 			for i := range channel {
@@ -253,9 +256,9 @@ func fanIn(doneCh <-chan struct{}, inChs []<-chan models.Metrics) <-chan models.
 	return ch
 }
 
-func batched(inCh <-chan models.Metrics, size int) <-chan []models.Metrics {
-	ch := make(chan []models.Metrics)
-	batch := make([]models.Metrics, 0, size)
+func batched(inCh <-chan models.Metric, size int) <-chan []models.Metric {
+	ch := make(chan []models.Metric)
+	batch := make([]models.Metric, 0, size)
 
 	go func() {
 		defer close(ch)

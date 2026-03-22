@@ -8,9 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/handler"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/handler"
 )
 
 const testMessage = `Got you`
@@ -283,4 +284,76 @@ func TestMiddlewareCompress(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, testMessage, string(body))
 	})
+}
+
+func TestMiddlewareLocalhost(t *testing.T) {
+	type want struct {
+		code    int
+		message string
+	}
+	tests := []struct {
+		name string
+		host string
+		want want
+	}{
+		{
+			name: "positive test [localhost]",
+			host: "localhost:",
+			want: want{
+				code:    200,
+				message: testMessage,
+			},
+		},
+		{
+			name: "positive test [127.0.0.1]",
+			host: "127.0.0.1:",
+			want: want{
+				code:    200,
+				message: testMessage,
+			},
+		},
+		{
+			name: "positive test [::1] with brackets",
+			host: "[::1]:",
+			want: want{
+				code:    200,
+				message: testMessage,
+			},
+		},
+		{
+			name: "negative test [example.com]",
+			host: "example.com:",
+			want: want{
+				code:    404,
+				message: "404 page not found\n",
+			},
+		},
+		{
+			name: "negative test [192.168.1.1]",
+			host: "192.168.1.1:",
+			want: want{
+				code:    404,
+				message: "404 page not found\n",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/", nil)
+			request.Host = tt.host
+			w := httptest.NewRecorder()
+
+			middleware := handler.MiddlewareLocalhost(testHandler())
+			middleware.ServeHTTP(w, request)
+
+			res := w.Result()
+
+			defer res.Body.Close()
+			resBody, err := io.ReadAll(res.Body)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want.code, res.StatusCode)
+			assert.Equal(t, tt.want.message, string(resBody))
+		})
+	}
 }

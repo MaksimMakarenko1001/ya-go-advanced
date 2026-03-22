@@ -26,16 +26,16 @@ func New(
 	}
 }
 
-func (srv *Service) Do(ctx context.Context, metrics []models.Metrics) (err error) {
-	if len(metrics) == 0 {
+func (srv *Service) Do(ctx context.Context, ts time.Time, request models.Request) (err error) {
+	if len(request.Metrics) == 0 {
 		return nil
 	}
 
-	ts := time.Now()
-	counters := make(map[string]entities.CounterItem, len(metrics))
-	gauges := make(map[string]entities.GaugeItem, len(metrics))
+	counters := make(map[string]entities.CounterItem, len(request.Metrics))
+	gauges := make(map[string]entities.GaugeItem, len(request.Metrics))
+	metrics := make([]string, 0, len(request.Metrics))
 
-	for _, metric := range metrics {
+	for _, metric := range request.Metrics {
 		switch metric.MType {
 		case pkg.MetricTypeCounter:
 			if metric.Delta == nil {
@@ -66,9 +66,30 @@ func (srv *Service) Do(ctx context.Context, metrics []models.Metrics) (err error
 		default:
 			return errInvalidMetricType
 		}
+
+		metrics = append(metrics, metric.ID)
 	}
 
-	ok, err := srv.metricRepository.AddUpdateBatch(ctx, pkg.ValuesToList(counters), pkg.ValuesToList(gauges))
+	outboxes := []entities.Outbox{
+		{
+			Destination: string(models.FileOutboxDestination),
+			Payload: pkg.MustJSON(models.FileEvent{
+				TS:        ts,
+				Metrics:   metrics,
+				IPAddress: request.IPAddress,
+			}),
+		},
+		{
+			Destination: string(models.RemoteOutboxDestination),
+			Payload: pkg.MustJSON(models.RemoteEvent{
+				TS:        ts,
+				Metrics:   metrics,
+				IPAddress: request.IPAddress,
+			}),
+		},
+	}
+
+	ok, err := srv.metricRepository.AddUpdateBatch(ctx, pkg.ValuesToList(counters), pkg.ValuesToList(gauges), outboxes, "")
 	if err != nil {
 		return pkg.ErrInternalServer.SetInfo(err.Error())
 	}
