@@ -19,6 +19,7 @@ type Config struct {
 	PollInterval   time.Duration `env:"POOL_INTERVAL"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
 	RateLimit      int           `env:"RATE_LIMIT"`
+	CryptoKey      string        `env:"CRYPTO_KEY"`
 }
 
 func (cfg *Config) LoadConfig(envPrefix string) {
@@ -38,6 +39,7 @@ func (cfg *Config) loadFromArg() {
 	flag.IntVar(&options.report, "r", 10, "report interval in seconds")
 	flag.StringVar(&cfg.Key, "k", "", "hash key")
 	flag.IntVar(&cfg.RateLimit, "l", 5, "num threads work concurrently")
+	flag.StringVar(&cfg.CryptoKey, "crypto-key", "", "crypto key path")
 
 	flag.Parse()
 
@@ -70,6 +72,9 @@ func (cfg *Config) loadFromEnv(envPrefix string) {
 	if rateLimit := config.RateLimit; rateLimit > 0 {
 		cfg.RateLimit = rateLimit
 	}
+	if cryptoKey := config.CryptoKey; cryptoKey != "" {
+		cfg.CryptoKey = cryptoKey
+	}
 }
 
 func (cfg *Config) loadFromEnvPassTests() {
@@ -91,6 +96,9 @@ func (cfg *Config) loadFromEnvPassTests() {
 
 	if key := os.Getenv("KEY"); key != "" {
 		cfg.Key = key
+	}
+	if cryptoKey := os.Getenv("CRYPTO_KEY"); cryptoKey != "" {
+		cfg.CryptoKey = cryptoKey
 	}
 
 	if rateLimit, err := strconv.Atoi(os.Getenv("RATE_LIMIT")); err != nil {

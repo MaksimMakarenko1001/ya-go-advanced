@@ -32,6 +32,9 @@ func run() error {
 	cfg.LoadConfig("AGENT_")
 
 	cli := agent.NewClient(*cfg)
+	if err := cli.WithCrypto(cfg.CryptoKey); err != nil {
+		log.Printf("agent encrypt opt disabled")
+	}
 
 	log.Printf("agent starts on %s\n", cfg.Address)
 

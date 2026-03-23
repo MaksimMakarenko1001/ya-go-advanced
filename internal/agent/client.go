@@ -5,14 +5,21 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/hmac"
+	"crypto/md5"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"strconv"
 	"time"
@@ -28,6 +35,7 @@ type Client struct {
 	memStats   runtime.MemStats
 	pollCount  int64
 	backoff    *backoff.Backoff
+	cryptoKey  *rsa.PublicKey
 }
 
 func NewClient(cfg Config) *Client {
@@ -288,14 +296,19 @@ func (c *Client) send(req *http.Request) (int, error) {
 		return 0, fmt.Errorf("copy not ok, %w", err)
 	}
 
-	r, err := http.NewRequest(req.Method, req.URL.String(), buf)
-	if err != nil {
-		return 0, fmt.Errorf("request not ok, %w", err)
-	}
-
 	hash, err := c.hashUp(buf.Bytes())
 	if err != nil {
 		return 0, fmt.Errorf("hash not ok, %w", err)
+	}
+
+	encrypted, err := c.encryptUp(buf.Bytes())
+	if err != nil {
+		return 0, err
+	}
+
+	r, err := http.NewRequest(req.Method, req.URL.String(), bytes.NewBuffer(encrypted))
+	if err != nil {
+		return 0, fmt.Errorf("request not ok, %w", err)
 	}
 
 	r.Header.Set("Content-Type", "application/json")
@@ -346,4 +359,37 @@ func (c *Client) hashUp(body []byte) (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+func (c *Client) encryptUp(body []byte) ([]byte, error) {
+	if c.cryptoKey == nil {
+		return body, nil
+	}
+
+	encrypted, err := rsa.EncryptOAEP(md5.New(), rand.Reader, c.cryptoKey, body, nil)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt message error: %w", err)
+	}
+
+	return encrypted, nil
+}
+
+func (c *Client) WithCrypto(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read crypto key error: %w", err)
+	}
+
+	pemBlock, _ := pem.Decode(data)
+	if pemBlock == nil {
+		return errors.New("crypto key not found")
+	}
+
+	private, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("parse crypto key error: %w", err)
+	}
+
+	c.cryptoKey = &private.PublicKey
+	return nil
 }
