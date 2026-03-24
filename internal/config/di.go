@@ -17,6 +17,7 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/storage/pg"
 	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
 	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
+	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
@@ -64,7 +65,8 @@ type DI struct {
 		dumpMetricService     *dumpMetricService.Service
 		dumpSyncMetricService *dumpMetricService.Service
 
-		hashService *hashService.Service
+		hashService    *hashService.Service
+		decryptService *decryptService.Service
 
 		auditFileService   *auditFileService.Service
 		auditRemoteService *auditRemoteService.Service
@@ -122,6 +124,8 @@ func (di *DI) initRepositories() {
 }
 
 func (di *DI) initServices() {
+	var errDecrypt error
+
 	di.services.included.updateCounterService = updateCounterService.New(di.repositories.pgStorage)
 	di.services.included.updateGaugeService = updateGaugeService.New(di.repositories.pgStorage)
 
@@ -145,6 +149,11 @@ func (di *DI) initServices() {
 	di.services.dumpSyncMetricService = dumpMetricService.New(di.config.DumpSyncService, di.config.FileStoragePath, di.repositories.inmemoryStorage)
 
 	di.services.hashService = hashService.New(di.config.HashService)
+
+	di.services.decryptService, errDecrypt = decryptService.New(di.config.DecryptService)
+	if errDecrypt != nil {
+		log.Printf("decrypt service init error: %s", errDecrypt.Error())
+	}
 
 	di.services.auditFileService = auditFileService.New(di.config.AuditFileService, di.repositories.outbox, di.repositories.fileAuditor)
 	di.services.auditRemoteService = auditRemoteService.New(di.config.AuditRemoteService, di.repositories.outbox, di.repositories.remoteAuditor)
@@ -174,6 +183,7 @@ func (di *DI) initAPI() {
 		di.services.listMetricService,
 		di.services.dumpSyncMetricService,
 		di.services.hashService,
+		di.services.decryptService,
 	)
 }
 
@@ -203,6 +213,7 @@ func (di *DI) Start() error {
 		di.api.external,
 		handler.MiddlewareCompress,
 		di.api.external.WithHash,
+		di.api.external.WithDecrypt,
 	))
 
 	di.infr.db.Close()

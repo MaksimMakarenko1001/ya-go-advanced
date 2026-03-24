@@ -12,6 +12,7 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
+	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
 	getService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getService/v0"
@@ -43,6 +44,8 @@ type API struct {
 
 	dumpSyncMetricService *dumpMetricService.Service
 	hashService           *hashService.Service
+
+	decryptService *decryptService.Service
 }
 
 func New(
@@ -55,6 +58,7 @@ func New(
 	listMetricService *listMetricService.Service,
 	dumpSyncMetricService *dumpMetricService.Service,
 	hashService *hashService.Service,
+	decryptService *decryptService.Service,
 ) *API {
 	return &API{
 		router:                chi.NewRouter(),
@@ -67,6 +71,7 @@ func New(
 		listMetricService:     listMetricService,
 		dumpSyncMetricService: dumpSyncMetricService,
 		hashService:           hashService,
+		decryptService:        decryptService,
 	}
 }
 
@@ -196,6 +201,25 @@ func (api API) WithHash(h http.Handler) http.Handler {
 			},
 		}
 		h.ServeHTTP(&hw, r)
+	})
+}
+
+func (api API) WithDecrypt(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encrypted, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		decrypted, err := api.decryptService.Decrypt(r.Context(), encrypted)
+		if err != nil {
+			WriteError(w, err)
+			return
+		}
+
+		r.Body = io.NopCloser(bytes.NewBuffer(decrypted))
+
+		h.ServeHTTP(w, r)
 	})
 }
 

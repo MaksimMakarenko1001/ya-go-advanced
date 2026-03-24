@@ -13,6 +13,7 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
 	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
 	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
+	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/worker/sworker"
@@ -26,6 +27,7 @@ type diConfig struct {
 	Restore            bool                      `env:"RESTORE"`
 	Database           db.Config                 `envPrefix:"DATABASE"`
 	HashService        hashService.Config        `envPrefix:"HASH_SERVICE_"`
+	DecryptService     decryptService.Config     `envPrefix:"DECRYPT_SERVICE_"`
 	DumpService        dumpMetricService.Config  `envPrefix:"DUMP_SERVICE_"`
 	DumpSyncService    dumpMetricService.Config  `envPrefix:"DUMP_SYNC_SERVICE_"`
 	AuditFileService   auditFileService.Config   `envPrefix:"AUDIT_FILE_SERVICE_"`
@@ -53,6 +55,9 @@ func (cfg *diConfig) loadConfig(envPrefix string) {
 	if cfg.AuditRemote == "" {
 		cfg.AuditRemoteService.AuditEnabled = false
 	}
+	if cfg.DecryptService.CryptoKey == "" {
+		cfg.DecryptService.DecryptEnabled = false
+	}
 }
 
 func (cfg *diConfig) loadDefaults(envPrefix string) {
@@ -75,6 +80,7 @@ func (cfg *diConfig) loadFromArg() {
 	flag.StringVar(&cfg.HashService.Key, "k", "", "hash key")
 	flag.StringVar(&cfg.AuditFile, "audit-file", "", "audit file name")
 	flag.StringVar(&cfg.AuditRemote, "audit-url", "", "audit full url")
+	flag.StringVar(&cfg.DecryptService.CryptoKey, "crypto-key", "", "crypto key path")
 
 	flag.Parse()
 
@@ -111,6 +117,9 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 	if auditRemote := config.AuditRemote; auditRemote != "" {
 		cfg.AuditRemote = auditRemote
 	}
+	if cryptoKey := config.DecryptService.CryptoKey; cryptoKey != "" {
+		cfg.DecryptService.CryptoKey = cryptoKey
+	}
 	if dsn, err := config.Database.ToDSN(); err != nil {
 		log.Printf("db config not ok, %s\n", err.Error())
 	} else {
@@ -144,6 +153,9 @@ func (cfg *diConfig) loadFromEnvToPassTests() {
 	}
 	if auditRemote := os.Getenv("AUDIT_URL"); auditRemote != "" {
 		cfg.AuditRemote = auditRemote
+	}
+	if cryptoKey := os.Getenv("CRYPTO_KEY"); cryptoKey != "" {
+		cfg.DecryptService.CryptoKey = cryptoKey
 	}
 }
 
