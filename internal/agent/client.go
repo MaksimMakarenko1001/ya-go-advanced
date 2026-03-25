@@ -349,10 +349,6 @@ func newGZipRequest(method string, url string, body []byte) (*http.Request, erro
 }
 
 func (c *Client) hashUp(body []byte) (string, error) {
-	if c.config.Key == "" {
-		return "", nil
-	}
-
 	h := hmac.New(sha256.New, []byte(c.config.Key))
 	if _, err := h.Write(body); err != nil {
 		return "", fmt.Errorf("failed to hash message, %w", err)

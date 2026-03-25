@@ -179,6 +179,7 @@ func (api API) WithSync(h http.Handler) http.Handler {
 
 func (api API) WithHash(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hw := w
 		if hash := r.Header.Get("HashSHA256"); hash != "" {
 			buf := new(bytes.Buffer)
 			if _, err := io.Copy(buf, r.Body); err != nil {
@@ -191,16 +192,17 @@ func (api API) WithHash(h http.Handler) http.Handler {
 			}
 
 			r.Body = io.NopCloser(buf)
+
+			hw = &responseHashWriter{
+				ResponseWriter: w,
+				body:           bytes.Buffer{},
+				hashFunc: func(message []byte) (string, error) {
+					return api.hashService.Hash(r.Context(), message)
+				},
+			}
 		}
 
-		hw := responseHashWriter{
-			ResponseWriter: w,
-			body:           bytes.Buffer{},
-			hashFunc: func(message []byte) (string, error) {
-				return api.hashService.Hash(r.Context(), message)
-			},
-		}
-		h.ServeHTTP(&hw, r)
+		h.ServeHTTP(hw, r)
 	})
 }
 

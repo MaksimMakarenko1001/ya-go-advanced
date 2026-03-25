@@ -20,10 +20,6 @@ func New(config Config) *Service {
 }
 
 func (s *Service) Validate(ctx context.Context, message []byte, hash string) error {
-	if s.cfg.Key == "" {
-		return nil
-	}
-
 	hashBytes, err := base64.StdEncoding.DecodeString(hash)
 	if err != nil {
 		return pkg.ErrInternalServer.SetInfof("failed to decode hash, %v", err)
@@ -41,10 +37,6 @@ func (s *Service) Validate(ctx context.Context, message []byte, hash string) err
 }
 
 func (s *Service) Hash(ctx context.Context, message []byte) (string, error) {
-	if s.cfg.Key == "" {
-		return "", nil
-	}
-
 	h := hmac.New(sha256.New, []byte(s.cfg.Key))
 	if _, err := h.Write(message); err != nil {
 		return "", pkg.ErrInternalServer.SetInfof("failed to hash message, %v", err)

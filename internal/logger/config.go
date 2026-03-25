@@ -10,7 +10,7 @@ const (
 )
 
 type Config struct {
-	Level LogLevel `env:"LEVEL" envDefault:"info"`
+	Level LogLevel `env:"LEVEL" envDefault:"info" json:"level"`
 }
 
 type LogLevel string
