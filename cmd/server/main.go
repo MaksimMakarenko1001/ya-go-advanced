@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config"
 )
@@ -19,19 +23,31 @@ func main() {
 
 	log.Println("server starting")
 
-	if err := run(); err != nil {
-		log.Fatal(err)
-		os.Exit(1)
-	}
-
-	log.Println("server stoped")
-}
-
-func run() error {
 	di := config.DI{}
 	di.Init("SERVER_")
 
-	return di.Start()
+	errCh := make(chan error, 1)
+	stopCh := make(chan os.Signal, 1)
+
+	go func() {
+		err := <-errCh
+		log.Fatal(err)
+
+		stopCh <- os.Kill
+	}()
+
+	di.Start(errCh)
+
+	signal.Notify(stopCh, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	<-stopCh
+	log.Println("server stoping")
+
+	stopCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	di.Stop(stopCtx)
+	log.Println("server stoped")
 }
 
 func printBuildInfo() {

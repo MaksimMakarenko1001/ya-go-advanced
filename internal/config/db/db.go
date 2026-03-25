@@ -108,5 +108,8 @@ func (pg *PGConnect) QueryWithOneResultJSON(
 }
 
 func (pg *PGConnect) Close() error {
+	if pg.db == nil {
+		return nil
+	}
 	return pg.db.Close()
 }

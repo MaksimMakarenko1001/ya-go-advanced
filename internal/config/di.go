@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -37,6 +38,7 @@ import (
 type DI struct {
 	config       *diConfig
 	logger       *logger.ZapLogger
+	httpServer   *http.Server
 	repositories struct {
 		encoder         *encode.JSONEncode
 		inmemoryStorage *inmemory.Repository
@@ -187,14 +189,12 @@ func (di *DI) initAPI() {
 	)
 }
 
-func (di *DI) Start() error {
+func (di *DI) Start(errorCh chan<- error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	di.workers.auditFile.Start(ctx)
 	di.workers.auditRemote.Start(ctx)
 
-	config := di.config.HTTP
 	if di.config.Restore {
 		if err := di.services.dumpMetricService.ReadDump(); err != nil {
 			log.Println(err.Error())
@@ -209,17 +209,29 @@ func (di *DI) Start() error {
 	di.api.external.RegisterHandlers()
 	di.api.external.RegisterPprof()
 
-	err := http.ListenAndServe(config.Address, handler.Conveyor(
-		di.api.external,
-		handler.MiddlewareCompress,
-		di.api.external.WithHash,
-		di.api.external.WithDecrypt,
-	))
+	di.httpServer = &http.Server{
+		Addr: di.config.HTTP.Address,
+		Handler: handler.Conveyor(
+			di.api.external,
+			handler.MiddlewareCompress,
+			di.api.external.WithHash,
+			di.api.external.WithDecrypt,
+		),
+	}
 
+	go func() {
+		defer cancel()
+
+		if err := di.httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			errorCh <- err
+		}
+	}()
+}
+
+func (di *DI) Stop(ctx context.Context) {
+	di.httpServer.Shutdown(ctx)
 	di.infr.db.Close()
 	di.repositories.fileAuditor.FileClose(context.TODO())
-
-	return err
 }
 
 func (di *DI) doDump(ctx context.Context) {

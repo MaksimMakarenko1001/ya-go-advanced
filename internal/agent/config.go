@@ -19,7 +19,7 @@ type Config struct {
 	Key            string        `env:"KEY" json:"key"`
 	PollInterval   time.Duration `env:"POOL_INTERVAL" json:"pollInterval"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL" json:"reportInterval"`
-	RateLimit      int           `env:"RATE_LIMIT" envDefault:"1" json:"rateLimit"`
+	RateLimit      int           `env:"RATE_LIMIT" envDefault:"3" json:"rateLimit"`
 	CryptoKey      string        `env:"CRYPTO_KEY" json:"cryptoKey"`
 	ConfigJSON     struct {
 		Config string `env:"CONFIG" json:"config"`

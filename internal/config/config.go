@@ -67,8 +67,6 @@ func (cfg *diConfig) loadConfig(envPrefix string) {
 	if cfg.DecryptService.CryptoKey == "" {
 		cfg.DecryptService.DecryptEnabled = false
 	}
-
-	log.Println("hash", cfg.HashService.Key)
 }
 
 func (cfg *diConfig) loadDefaults(envPrefix string) {

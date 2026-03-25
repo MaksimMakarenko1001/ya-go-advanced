@@ -22,6 +22,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/models"
@@ -225,6 +226,7 @@ func (c *Client) collect(doneCh <-chan struct{}) <-chan models.Metric {
 		for {
 			select {
 			case <-doneCh:
+				log.Println("Stop collecting")
 				return
 			case <-poolTicker.C:
 				log.Println("Collects metrics")
@@ -266,26 +268,38 @@ func (c *Client) sendWorker(id int, batchedCh <-chan []models.Metric, results ch
 
 		results <- res
 	}
+	results <- fmt.Sprintf("#%d: done", id)
 }
 
-func (c *Client) Start() error {
+func (c *Client) Run(ctx context.Context) error {
 	doneCh := make(chan struct{})
-	defer close(doneCh)
 
 	metricCh := c.collect(doneCh)
 	batchedCh := batched(metricCh, c.config.BatchSize)
+	results := make(chan string, c.config.RateLimit)
 
-	results := make(chan string)
+	var wg sync.WaitGroup
 	for w := range c.config.RateLimit {
-		go c.sendWorker(w, batchedCh, results)
+		wg.Go(func() {
+			c.sendWorker(w, batchedCh, results)
+		})
 	}
 
-	for res := range results {
-		log.Println(res)
-	}
+	go func() {
+		for res := range results {
+			log.Println(res)
+		}
+		log.Println("done")
+	}()
+
+	<-ctx.Done()
+	// stop collecting
+	close(doneCh)
+
+	wg.Wait()
+	// stop iterating results
 	close(results)
-
-	return nil
+	return ctx.Err()
 
 }
 
