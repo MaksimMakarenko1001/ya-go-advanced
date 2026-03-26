@@ -335,6 +335,7 @@ func (c *Client) send(req *http.Request) (int, error) {
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
 	r.Header.Set("HashSHA256", hash)
+	r.Header.Set("X-Real-IP", "127.0.0.1")
 
 	resp, err := c.httpClient.Do(r)
 

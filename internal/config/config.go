@@ -17,6 +17,7 @@ import (
 	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
+	subnetService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/subnetService/v0"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/worker/sworker"
 )
 
@@ -29,6 +30,7 @@ type diConfig struct {
 	Database           db.Config                 `envPrefix:"DATABASE_" json:"database"`
 	HashService        hashService.Config        `envPrefix:"HASH_SERVICE_" json:"hashService"`
 	DecryptService     decryptService.Config     `envPrefix:"DECRYPT_SERVICE_" json:"decryptService"`
+	SubnetService      subnetService.Config      `envPrefix:"SUBNET_SERVICE" json:"subnetService"`
 	DumpService        dumpMetricService.Config  `envPrefix:"DUMP_SERVICE_" json:"dumpService"`
 	DumpSyncService    dumpMetricService.Config  `envPrefix:"DUMP_SYNC_SERVICE_" json:"dumpSyncService"`
 	AuditFileService   auditFileService.Config   `envPrefix:"AUDIT_FILE_SERVICE_" json:"auditFileService"`
@@ -67,6 +69,9 @@ func (cfg *diConfig) loadConfig(envPrefix string) {
 	if cfg.DecryptService.CryptoKey == "" {
 		cfg.DecryptService.DecryptEnabled = false
 	}
+	if cfg.SubnetService.TrustedSubnet == "" {
+		cfg.SubnetService.ValidateEnabled = false
+	}
 }
 
 func (cfg *diConfig) loadDefaults(envPrefix string) {
@@ -100,6 +105,7 @@ func (cfg *diConfig) loadFromJSON(envPrefix string) {
 		StoreFile     string `json:"store_file"`
 		DatabaseDsn   string `json:"database_dsn"`
 		CryptoKey     string `json:"crypto_key"`
+		TrustedSubnet string `json:"trusted_subnet"`
 	}
 
 	data, err := os.ReadFile(cfg.ConfigJSON.Config)
@@ -128,6 +134,9 @@ func (cfg *diConfig) loadFromJSON(envPrefix string) {
 	if cryptoKey := config.CryptoKey; cryptoKey != "" {
 		cfg.DecryptService.CryptoKey = cryptoKey
 	}
+	if trustedSubnet := config.TrustedSubnet; trustedSubnet != "" {
+		cfg.SubnetService.TrustedSubnet = trustedSubnet
+	}
 	if storeInterval := config.StoreInterval; storeInterval != "" {
 		if store, err := time.ParseDuration(storeInterval); err == nil && store > 0 {
 			cfg.StoreInterval = store
@@ -146,6 +155,7 @@ func (cfg *diConfig) loadFromArg() {
 		AuditFile       string
 		AuditRemote     string
 		CryptoKey       string
+		TrustedSubnet   string
 	}
 
 	flag.StringVar(&config.Address, "a", "", "server net address")
@@ -157,6 +167,7 @@ func (cfg *diConfig) loadFromArg() {
 	flag.StringVar(&config.AuditFile, "audit-file", "", "audit file name")
 	flag.StringVar(&config.AuditRemote, "audit-url", "", "audit full url")
 	flag.StringVar(&config.CryptoKey, "crypto-key", "", "crypto key path")
+	flag.StringVar(&config.TrustedSubnet, "t", "", "trusted subnet")
 
 	flag.Parse()
 
@@ -183,6 +194,9 @@ func (cfg *diConfig) loadFromArg() {
 	}
 	if cryptoKey := config.CryptoKey; cryptoKey != "" {
 		cfg.DecryptService.CryptoKey = cryptoKey
+	}
+	if trustedSubnet := config.TrustedSubnet; trustedSubnet != "" {
+		cfg.SubnetService.TrustedSubnet = trustedSubnet
 	}
 	if dsn := config.DSN; dsn != "" {
 		cfg.Database.DSN = dsn
@@ -218,6 +232,9 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 	if cryptoKey := config.DecryptService.CryptoKey; cryptoKey != "" {
 		cfg.DecryptService.CryptoKey = cryptoKey
 	}
+	if trustedSubnet := config.SubnetService.TrustedSubnet; trustedSubnet != "" {
+		cfg.SubnetService.TrustedSubnet = trustedSubnet
+	}
 	if dsn, err := config.Database.ToDSN(); err == nil {
 		cfg.Database.DSN = dsn
 	}
@@ -247,6 +264,9 @@ func (cfg *diConfig) loadFromEnvToPassTests() {
 	}
 	if cryptoKey := os.Getenv("CRYPTO_KEY"); cryptoKey != "" {
 		cfg.DecryptService.CryptoKey = cryptoKey
+	}
+	if trustedSubnet := os.Getenv("TRUSTED_SUBNET"); trustedSubnet != "" {
+		cfg.SubnetService.TrustedSubnet = trustedSubnet
 	}
 	if storeInterval, ok := os.LookupEnv("STORE_INTERVAL"); ok {
 		if store, err := strconv.Atoi(storeInterval); err == nil && store > 0 {

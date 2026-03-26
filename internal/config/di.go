@@ -27,6 +27,8 @@ import (
 	getService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getService/v0"
 	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/listMetricService/v0"
+	subnetService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/subnetService/service"
+	subnetServiceV0 "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/subnetService/v0"
 	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateBatchService/v0"
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateCounterService/v0"
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateFlatService/v0"
@@ -70,6 +72,7 @@ type DI struct {
 
 		hashService    *hashService.Service
 		decryptService decryptService.DecryptService
+		subnetService  subnetService.SubnetService
 
 		auditFileService   *auditFileService.Service
 		auditRemoteService *auditRemoteService.Service
@@ -152,6 +155,7 @@ func (di *DI) initServices() {
 	di.services.hashService = hashService.New(di.config.HashService)
 
 	di.services.decryptService = decryptServiceV0.New(di.config.DecryptService)
+	di.services.subnetService = subnetServiceV0.New(di.config.SubnetService)
 
 	di.services.auditFileService = auditFileService.New(di.config.AuditFileService, di.repositories.outbox, di.repositories.fileAuditor)
 	di.services.auditRemoteService = auditRemoteService.New(di.config.AuditRemoteService, di.repositories.outbox, di.repositories.remoteAuditor)
@@ -182,6 +186,7 @@ func (di *DI) initAPI() {
 		di.services.dumpSyncMetricService,
 		di.services.hashService,
 		di.services.decryptService,
+		di.services.subnetService,
 	)
 }
 
@@ -212,6 +217,7 @@ func (di *DI) Start(errorCh chan<- error, certFile string, keyFile string) {
 			handler.MiddlewareCompress,
 			di.api.external.WithHash,
 			di.api.external.WithDecrypt,
+			di.api.external.WithTrustedSubnet,
 		),
 	}
 
