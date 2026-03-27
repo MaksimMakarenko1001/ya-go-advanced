@@ -10,7 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/service"
 )
+
+var _ service.DecryptService = (*Service)(nil)
 
 var errNotFound = errors.New("private key not found")
 

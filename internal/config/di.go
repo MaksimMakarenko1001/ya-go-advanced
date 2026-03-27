@@ -18,7 +18,8 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/storage/pg"
 	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
 	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
-	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
+	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/service"
+	decryptServiceV0 "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
@@ -68,7 +69,7 @@ type DI struct {
 		dumpSyncMetricService *dumpMetricService.Service
 
 		hashService    *hashService.Service
-		decryptService *decryptService.Service
+		decryptService decryptService.DecryptService
 
 		auditFileService   *auditFileService.Service
 		auditRemoteService *auditRemoteService.Service
@@ -152,7 +153,7 @@ func (di *DI) initServices() {
 
 	di.services.hashService = hashService.New(di.config.HashService)
 
-	di.services.decryptService, errDecrypt = decryptService.New(di.config.DecryptService)
+	di.services.decryptService, errDecrypt = decryptServiceV0.New(di.config.DecryptService)
 	if errDecrypt != nil {
 		log.Printf("decrypt service init error: %s", errDecrypt.Error())
 	}

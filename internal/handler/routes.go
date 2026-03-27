@@ -12,7 +12,7 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
-	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
+	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/service"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
 	getService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getService/v0"
@@ -45,7 +45,7 @@ type API struct {
 	dumpSyncMetricService *dumpMetricService.Service
 	hashService           *hashService.Service
 
-	decryptService *decryptService.Service
+	decryptService decryptService.DecryptService
 }
 
 func New(
@@ -58,7 +58,7 @@ func New(
 	listMetricService *listMetricService.Service,
 	dumpSyncMetricService *dumpMetricService.Service,
 	hashService *hashService.Service,
-	decryptService *decryptService.Service,
+	decryptService decryptService.DecryptService,
 ) *API {
 	return &API{
 		router:                chi.NewRouter(),
