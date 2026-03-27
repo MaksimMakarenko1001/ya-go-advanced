@@ -127,8 +127,6 @@ func (di *DI) initRepositories() {
 }
 
 func (di *DI) initServices() {
-	var errDecrypt error
-
 	di.services.included.updateCounterService = updateCounterService.New(di.repositories.pgStorage)
 	di.services.included.updateGaugeService = updateGaugeService.New(di.repositories.pgStorage)
 
@@ -153,10 +151,7 @@ func (di *DI) initServices() {
 
 	di.services.hashService = hashService.New(di.config.HashService)
 
-	di.services.decryptService, errDecrypt = decryptServiceV0.New(di.config.DecryptService)
-	if errDecrypt != nil {
-		log.Printf("decrypt service init error: %s", errDecrypt.Error())
-	}
+	di.services.decryptService = decryptServiceV0.New(di.config.DecryptService)
 
 	di.services.auditFileService = auditFileService.New(di.config.AuditFileService, di.repositories.outbox, di.repositories.fileAuditor)
 	di.services.auditRemoteService = auditRemoteService.New(di.config.AuditRemoteService, di.repositories.outbox, di.repositories.remoteAuditor)

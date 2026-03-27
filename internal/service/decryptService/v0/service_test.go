@@ -60,11 +60,10 @@ func TestService_DecryptValidService(t *testing.T) {
 		},
 	}
 
-	validService, err := New(Config{
+	validService := New(Config{
 		DecryptEnabled: true,
 		CryptoKey:      "testdata/private.pem",
 	})
-	require.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -94,11 +93,10 @@ func TestService_DecryptDisabledService(t *testing.T) {
 		},
 	}
 
-	disabledService, err := New(Config{
+	disabledService := New(Config{
 		DecryptEnabled: false,
 		CryptoKey:      "testdata/private.pem",
 	})
-	require.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -122,20 +120,19 @@ func TestService_DecryptNoKeyService(t *testing.T) {
 		},
 	}
 
-	noKeyService, err := New(Config{
+	noKeyService := New(Config{
 		DecryptEnabled: true,
 		CryptoKey:      "some_key.pem",
 	})
-	assert.Error(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			_, err = noKeyService.Decrypt(ctx, tt.message)
+			_, err := noKeyService.Decrypt(ctx, tt.message)
 
 			assert.Error(t, err)
-			assert.ErrorIs(t, err, errNotFound)
+			assert.ErrorIs(t, err, errPrivateKey)
 		})
 	}
 }
