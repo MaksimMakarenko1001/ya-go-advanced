@@ -189,7 +189,7 @@ func (di *DI) initAPI() {
 	)
 }
 
-func (di *DI) Start(errorCh chan<- error) {
+func (di *DI) Start(errorCh chan<- error, certFile string, keyFile string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	di.workers.auditFile.Start(ctx)
@@ -222,7 +222,7 @@ func (di *DI) Start(errorCh chan<- error) {
 	go func() {
 		defer cancel()
 
-		if err := di.httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		if err := di.httpServer.ListenAndServeTLS(certFile, keyFile); !errors.Is(err, http.ErrServerClosed) {
 			errorCh <- err
 		}
 	}()
