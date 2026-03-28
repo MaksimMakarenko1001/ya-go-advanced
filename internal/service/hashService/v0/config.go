@@ -1,5 +1,5 @@
 package v0
 
 type Config struct {
-	Key string `env:"KEY"`
+	Key string `env:"KEY" json:"key"`
 }

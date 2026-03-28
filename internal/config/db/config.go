@@ -8,13 +8,13 @@ import (
 
 type Config struct {
 	DSN        string `json:"-"`
-	Host       string `env:"host" envDefault:"localhost"`
-	Port       uint16 `env:"port" envDefault:"5432"`
-	User       string `env:"user" envDefault:"postgres"`
-	Password   string `env:"password" envDefault:"postgres"`
-	Name       string `env:"name" envDefault:"postgres"`
-	SSLMode    string `env:"ssl_mode" envDefault:"disable"`
-	MaxRetries uint16 `env:"max_retries" envDefault:"3"`
+	Host       string `env:"HOST" envDefault:"localhost" json:"host"`
+	Port       uint16 `env:"PORT" envDefault:"5432" json:"port"`
+	User       string `env:"USER" envDefault:"postgres" json:"user"`
+	Password   string `env:"PASSWORD" envDefault:"postgres" json:"-"`
+	Name       string `env:"NAME" envDefault:"postgres" json:"name"`
+	SSLMode    string `env:"SSL_MODE" envDefault:"disable" json:"sslMode"`
+	MaxRetries uint16 `env:"MAX_RETRIES" envDefault:"3" json:"maxRetries"`
 }
 
 func (cfg Config) ToDSN() (string, error) {

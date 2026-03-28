@@ -12,6 +12,7 @@ import (
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
+	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/service"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
 	getService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getService/v0"
@@ -43,6 +44,8 @@ type API struct {
 
 	dumpSyncMetricService *dumpMetricService.Service
 	hashService           *hashService.Service
+
+	decryptService decryptService.DecryptService
 }
 
 func New(
@@ -55,6 +58,7 @@ func New(
 	listMetricService *listMetricService.Service,
 	dumpSyncMetricService *dumpMetricService.Service,
 	hashService *hashService.Service,
+	decryptService decryptService.DecryptService,
 ) *API {
 	return &API{
 		router:                chi.NewRouter(),
@@ -67,6 +71,7 @@ func New(
 		listMetricService:     listMetricService,
 		dumpSyncMetricService: dumpSyncMetricService,
 		hashService:           hashService,
+		decryptService:        decryptService,
 	}
 }
 
@@ -174,6 +179,7 @@ func (api API) WithSync(h http.Handler) http.Handler {
 
 func (api API) WithHash(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hw := w
 		if hash := r.Header.Get("HashSHA256"); hash != "" {
 			buf := new(bytes.Buffer)
 			if _, err := io.Copy(buf, r.Body); err != nil {
@@ -186,16 +192,36 @@ func (api API) WithHash(h http.Handler) http.Handler {
 			}
 
 			r.Body = io.NopCloser(buf)
+
+			hw = &responseHashWriter{
+				ResponseWriter: w,
+				body:           bytes.Buffer{},
+				hashFunc: func(message []byte) (string, error) {
+					return api.hashService.Hash(r.Context(), message)
+				},
+			}
 		}
 
-		hw := responseHashWriter{
-			ResponseWriter: w,
-			body:           bytes.Buffer{},
-			hashFunc: func(message []byte) (string, error) {
-				return api.hashService.Hash(r.Context(), message)
-			},
+		h.ServeHTTP(hw, r)
+	})
+}
+
+func (api API) WithDecrypt(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encrypted, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		h.ServeHTTP(&hw, r)
+
+		decrypted, err := api.decryptService.Decrypt(r.Context(), encrypted)
+		if err != nil {
+			WriteError(w, err)
+			return
+		}
+
+		r.Body = io.NopCloser(bytes.NewBuffer(decrypted))
+
+		h.ServeHTTP(w, r)
 	})
 }
 

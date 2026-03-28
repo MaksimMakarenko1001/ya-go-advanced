@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -17,6 +18,8 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/storage/pg"
 	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
 	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
+	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/service"
+	decryptServiceV0 "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
@@ -36,6 +39,7 @@ import (
 type DI struct {
 	config       *diConfig
 	logger       *logger.ZapLogger
+	httpServer   *http.Server
 	repositories struct {
 		encoder         *encode.JSONEncode
 		inmemoryStorage *inmemory.Repository
@@ -64,7 +68,8 @@ type DI struct {
 		dumpMetricService     *dumpMetricService.Service
 		dumpSyncMetricService *dumpMetricService.Service
 
-		hashService *hashService.Service
+		hashService    *hashService.Service
+		decryptService decryptService.DecryptService
 
 		auditFileService   *auditFileService.Service
 		auditRemoteService *auditRemoteService.Service
@@ -146,6 +151,8 @@ func (di *DI) initServices() {
 
 	di.services.hashService = hashService.New(di.config.HashService)
 
+	di.services.decryptService = decryptServiceV0.New(di.config.DecryptService)
+
 	di.services.auditFileService = auditFileService.New(di.config.AuditFileService, di.repositories.outbox, di.repositories.fileAuditor)
 	di.services.auditRemoteService = auditRemoteService.New(di.config.AuditRemoteService, di.repositories.outbox, di.repositories.remoteAuditor)
 }
@@ -174,17 +181,16 @@ func (di *DI) initAPI() {
 		di.services.listMetricService,
 		di.services.dumpSyncMetricService,
 		di.services.hashService,
+		di.services.decryptService,
 	)
 }
 
-func (di *DI) Start() error {
+func (di *DI) Start(errorCh chan<- error, certFile string, keyFile string) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	di.workers.auditFile.Start(ctx)
 	di.workers.auditRemote.Start(ctx)
 
-	config := di.config.HTTP
 	if di.config.Restore {
 		if err := di.services.dumpMetricService.ReadDump(); err != nil {
 			log.Println(err.Error())
@@ -199,16 +205,29 @@ func (di *DI) Start() error {
 	di.api.external.RegisterHandlers()
 	di.api.external.RegisterPprof()
 
-	err := http.ListenAndServe(config.Address, handler.Conveyor(
-		di.api.external,
-		handler.MiddlewareCompress,
-		di.api.external.WithHash,
-	))
+	di.httpServer = &http.Server{
+		Addr: di.config.HTTP.Address,
+		Handler: handler.Conveyor(
+			di.api.external,
+			handler.MiddlewareCompress,
+			di.api.external.WithHash,
+			di.api.external.WithDecrypt,
+		),
+	}
 
+	go func() {
+		defer cancel()
+
+		if err := di.httpServer.ListenAndServeTLS(certFile, keyFile); !errors.Is(err, http.ErrServerClosed) {
+			errorCh <- err
+		}
+	}()
+}
+
+func (di *DI) Stop(ctx context.Context) {
+	di.httpServer.Shutdown(ctx)
 	di.infr.db.Close()
 	di.repositories.fileAuditor.FileClose(context.TODO())
-
-	return err
 }
 
 func (di *DI) doDump(ctx context.Context) {

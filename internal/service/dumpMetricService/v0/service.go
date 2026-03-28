@@ -22,6 +22,10 @@ func New(config Config, fname string, metricRepo MetricRepository) *Service {
 }
 
 func (srv *Service) ReadDump() error {
+	if !srv.config.ReadDumpEnable {
+		return nil
+	}
+
 	file, err := os.ReadFile(srv.fname)
 	if err != nil {
 		return fmt.Errorf("reading file not ok, %w", err)

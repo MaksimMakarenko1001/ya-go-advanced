@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"os"
@@ -11,39 +12,125 @@ import (
 )
 
 type Config struct {
-	Address        string        `env:"ADDRESS"`
-	Timeout        time.Duration `env:"TIMEOUT" envDefault:"10s"`
-	BatchSize      int           `env:"BATCH_SIZE" envDefault:"3"`
-	MaxRetries     uint16        `env:"MAX_RETRIES" envDefault:"3"`
-	Key            string        `env:"KEY"`
-	PollInterval   time.Duration `env:"POOL_INTERVAL"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
-	RateLimit      int           `env:"RATE_LIMIT"`
+	Address        string        `env:"ADDRESS" json:"address"`
+	Timeout        time.Duration `env:"TIMEOUT" envDefault:"10s" json:"timeout"`
+	BatchSize      int           `env:"BATCH_SIZE" envDefault:"3" json:"batchSize"`
+	MaxRetries     uint16        `env:"MAX_RETRIES" envDefault:"3" json:"maxRetries"`
+	Key            string        `env:"KEY" json:"key"`
+	PollInterval   time.Duration `env:"POOL_INTERVAL" json:"pollInterval"`
+	ReportInterval time.Duration `env:"REPORT_INTERVAL" json:"reportInterval"`
+	RateLimit      int           `env:"RATE_LIMIT" envDefault:"3" json:"rateLimit"`
+	CryptoKey      string        `env:"CRYPTO_KEY" json:"cryptoKey"`
+	ConfigJSON     struct {
+		Config string `env:"CONFIG" json:"config"`
+	} `json:"configJSON"`
 }
 
 func (cfg *Config) LoadConfig(envPrefix string) {
+	cfg.loadDefaults(envPrefix)
+	cfg.loadFromJSON(envPrefix)
 	cfg.loadFromArg()
 	cfg.loadFromEnv(envPrefix)
 	cfg.loadFromEnvPassTests() // meets tests required
 }
 
-func (cfg *Config) loadFromArg() {
-	var options struct {
-		pool   int
-		report int
+func (cfg *Config) loadDefaults(envPrefix string) {
+	if err := env.Parse(cfg, env.Options{Prefix: envPrefix}); err != nil {
+		log.Printf("env defaults not ok, %s\n", err.Error())
 	}
+}
 
-	flag.StringVar(&cfg.Address, "a", `localhost:8080`, "agent net address")
-	flag.IntVar(&options.pool, "p", 2, "pool interval in seconds")
-	flag.IntVar(&options.report, "r", 10, "report interval in seconds")
-	flag.StringVar(&cfg.Key, "k", "", "hash key")
-	flag.IntVar(&cfg.RateLimit, "l", 5, "num threads work concurrently")
+func (cfg *Config) loadFromJSON(envPrefix string) {
+	flag.StringVar(&cfg.ConfigJSON.Config, "c", "", "config path")
+	flag.StringVar(&cfg.ConfigJSON.Config, "config", "", "config path")
 
 	flag.Parse()
 
-	cfg.PollInterval = time.Second * time.Duration(options.pool)
-	cfg.ReportInterval = time.Second * time.Duration(options.report)
+	if err := env.Parse(&cfg.ConfigJSON, env.Options{Prefix: envPrefix}); err != nil {
+		log.Printf("env config json path not ok, %s\n", err.Error())
+	}
 
+	if config := os.Getenv("CONFIG"); config != "" {
+		cfg.ConfigJSON.Config = config
+	}
+
+	if cfg.ConfigJSON.Config == "" {
+		return
+	}
+
+	var config struct {
+		Address        string `json:"address"`
+		ReportInterval string `json:"report_interval"`
+		PollInterval   string `json:"poll_interval"`
+		CryptoKey      string `json:"crypto_key"`
+	}
+
+	data, err := os.ReadFile(cfg.ConfigJSON.Config)
+	if err != nil {
+		log.Printf("json config not ok, %s\n", err.Error())
+		return
+	}
+
+	if err := json.Unmarshal(data, &config); err != nil {
+		log.Printf("json config not ok, %s\n", err.Error())
+		return
+	}
+
+	if address := config.Address; address != "" {
+		cfg.Address = address
+	}
+	if reportInterval := config.ReportInterval; reportInterval != "" {
+		if report, err := time.ParseDuration(reportInterval); err == nil {
+			cfg.ReportInterval = report
+		}
+	}
+	if pollInterval := config.PollInterval; pollInterval != "" {
+		if pool, err := time.ParseDuration(pollInterval); err == nil {
+			cfg.PollInterval = pool
+		}
+	}
+	if cryptoKey := config.CryptoKey; cryptoKey != "" {
+		cfg.CryptoKey = cryptoKey
+	}
+}
+
+func (cfg *Config) loadFromArg() {
+	var config struct {
+		Address   string
+		Pool      int
+		Report    int
+		Key       string
+		RateLimit int
+		CryptoKey string
+	}
+
+	flag.StringVar(&config.Address, "a", "", "agent net address")
+	flag.IntVar(&config.Pool, "p", 0, "pool interval in seconds")
+	flag.IntVar(&config.Report, "r", 0, "report interval in seconds")
+	flag.StringVar(&config.Key, "k", "", "hash key")
+	flag.IntVar(&config.RateLimit, "l", 0, "num threads work concurrently")
+	flag.StringVar(&config.CryptoKey, "crypto-key", "", "crypto key path")
+
+	flag.Parse()
+
+	if address := config.Address; address != "" {
+		cfg.Address = address
+	}
+	if pool := config.Pool; pool > 0 {
+		cfg.PollInterval = time.Second * time.Duration(pool)
+	}
+	if report := config.Report; report > 0 {
+		cfg.ReportInterval = time.Second * time.Duration(report)
+	}
+	if key := config.Key; key != "" {
+		cfg.Key = key
+	}
+	if rateLimit := config.RateLimit; rateLimit > 1 {
+		cfg.RateLimit = rateLimit
+	}
+	if cryptoKey := config.CryptoKey; cryptoKey != "" {
+		cfg.CryptoKey = cryptoKey
+	}
 }
 
 func (cfg *Config) loadFromEnv(envPrefix string) {
@@ -54,10 +141,6 @@ func (cfg *Config) loadFromEnv(envPrefix string) {
 		return
 	}
 
-	cfg.BatchSize = config.BatchSize
-	cfg.MaxRetries = config.MaxRetries
-	cfg.Key = config.Key
-
 	if address := config.Address; address != "" {
 		cfg.Address = address
 	}
@@ -67,8 +150,11 @@ func (cfg *Config) loadFromEnv(envPrefix string) {
 	if report := config.ReportInterval; report.String() != "0s" {
 		cfg.ReportInterval = report
 	}
-	if rateLimit := config.RateLimit; rateLimit > 0 {
+	if rateLimit := config.RateLimit; rateLimit > 1 {
 		cfg.RateLimit = rateLimit
+	}
+	if cryptoKey := config.CryptoKey; cryptoKey != "" {
+		cfg.CryptoKey = cryptoKey
 	}
 }
 
@@ -76,26 +162,26 @@ func (cfg *Config) loadFromEnvPassTests() {
 	if address := os.Getenv("ADDRESS"); address != "" {
 		cfg.Address = address
 	}
-
-	if pool, err := strconv.Atoi(os.Getenv("POOL_INTERVAL")); err != nil {
-		log.Printf("POOL_INTERVAL env not ok, %s\n", err.Error())
-	} else {
-		cfg.PollInterval = time.Second * time.Duration(pool)
-	}
-
-	if report, err := strconv.Atoi(os.Getenv("REPORT_INTERVAL")); err != nil {
-		log.Printf("REPORT_INTERVAL env not ok, %s\n", err.Error())
-	} else {
-		cfg.ReportInterval = time.Second * time.Duration(report)
-	}
-
 	if key := os.Getenv("KEY"); key != "" {
 		cfg.Key = key
 	}
+	if cryptoKey := os.Getenv("CRYPTO_KEY"); cryptoKey != "" {
+		cfg.CryptoKey = cryptoKey
+	}
 
-	if rateLimit, err := strconv.Atoi(os.Getenv("RATE_LIMIT")); err != nil {
-		log.Printf("RATE_LIMIT env not ok, %s\n", err.Error())
-	} else {
-		cfg.RateLimit = rateLimit
+	if poolInterval, ok := os.LookupEnv("POOL_INTERVAL"); ok {
+		if pool, err := strconv.Atoi(poolInterval); err == nil && pool > 0 {
+			cfg.PollInterval = time.Second * time.Duration(pool)
+		}
+	}
+	if reportInterval, ok := os.LookupEnv("REPORT_INTERVAL"); ok {
+		if report, err := strconv.Atoi(reportInterval); err == nil && report > 0 {
+			cfg.ReportInterval = time.Second * time.Duration(report)
+		}
+	}
+	if rateLimit, ok := os.LookupEnv("RATE_LIMIT"); ok {
+		if rate, err := strconv.Atoi(rateLimit); err == nil && rate > 1 {
+			cfg.RateLimit = rate
+		}
 	}
 }

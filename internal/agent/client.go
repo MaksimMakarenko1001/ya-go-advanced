@@ -5,16 +5,25 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/hmac"
+	"crypto/md5"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/models"
@@ -28,10 +37,16 @@ type Client struct {
 	memStats   runtime.MemStats
 	pollCount  int64
 	backoff    *backoff.Backoff
+	cryptoKey  *rsa.PublicKey
 }
 
 func NewClient(cfg Config) *Client {
-	httpClient := &http.Client{Timeout: cfg.Timeout}
+	httpClient := &http.Client{
+		Timeout: cfg.Timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
 
 	return &Client{
 		httpClient: httpClient,
@@ -49,7 +64,7 @@ func (c *Client) sendBatchJSON(batch []models.Metric) (err error) {
 	}
 
 	u := url.URL{
-		Scheme: "http",
+		Scheme: "https",
 		Host:   c.config.Address,
 		Path:   "/updates/",
 	}
@@ -217,6 +232,7 @@ func (c *Client) collect(doneCh <-chan struct{}) <-chan models.Metric {
 		for {
 			select {
 			case <-doneCh:
+				log.Println("Stop collecting")
 				return
 			case <-poolTicker.C:
 				log.Println("Collects metrics")
@@ -258,26 +274,38 @@ func (c *Client) sendWorker(id int, batchedCh <-chan []models.Metric, results ch
 
 		results <- res
 	}
+	results <- fmt.Sprintf("#%d: done", id)
 }
 
-func (c *Client) Start() error {
+func (c *Client) Run(ctx context.Context) error {
 	doneCh := make(chan struct{})
-	defer close(doneCh)
 
 	metricCh := c.collect(doneCh)
 	batchedCh := batched(metricCh, c.config.BatchSize)
+	results := make(chan string, c.config.RateLimit)
 
-	results := make(chan string)
+	var wg sync.WaitGroup
 	for w := range c.config.RateLimit {
-		go c.sendWorker(w, batchedCh, results)
+		wg.Go(func() {
+			c.sendWorker(w, batchedCh, results)
+		})
 	}
 
-	for res := range results {
-		log.Println(res)
-	}
+	go func() {
+		for res := range results {
+			log.Println(res)
+		}
+		log.Println("done")
+	}()
+
+	<-ctx.Done()
+	// stop collecting
+	close(doneCh)
+
+	wg.Wait()
+	// stop iterating results
 	close(results)
-
-	return nil
+	return ctx.Err()
 
 }
 
@@ -288,14 +316,19 @@ func (c *Client) send(req *http.Request) (int, error) {
 		return 0, fmt.Errorf("copy not ok, %w", err)
 	}
 
-	r, err := http.NewRequest(req.Method, req.URL.String(), buf)
-	if err != nil {
-		return 0, fmt.Errorf("request not ok, %w", err)
-	}
-
 	hash, err := c.hashUp(buf.Bytes())
 	if err != nil {
 		return 0, fmt.Errorf("hash not ok, %w", err)
+	}
+
+	encrypted, err := c.encryptUp(buf.Bytes())
+	if err != nil {
+		return 0, err
+	}
+
+	r, err := http.NewRequest(req.Method, req.URL.String(), bytes.NewBuffer(encrypted))
+	if err != nil {
+		return 0, fmt.Errorf("request not ok, %w", err)
 	}
 
 	r.Header.Set("Content-Type", "application/json")
@@ -336,14 +369,43 @@ func newGZipRequest(method string, url string, body []byte) (*http.Request, erro
 }
 
 func (c *Client) hashUp(body []byte) (string, error) {
-	if c.config.Key == "" {
-		return "", nil
-	}
-
 	h := hmac.New(sha256.New, []byte(c.config.Key))
 	if _, err := h.Write(body); err != nil {
 		return "", fmt.Errorf("failed to hash message, %w", err)
 	}
 
 	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+func (c *Client) encryptUp(body []byte) ([]byte, error) {
+	if c.cryptoKey == nil {
+		return body, nil
+	}
+
+	encrypted, err := rsa.EncryptOAEP(md5.New(), rand.Reader, c.cryptoKey, body, nil)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt message error: %w", err)
+	}
+
+	return encrypted, nil
+}
+
+func (c *Client) WithCrypto(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read crypto key error: %w", err)
+	}
+
+	pemBlock, _ := pem.Decode(data)
+	if pemBlock == nil {
+		return errors.New("crypto key not found")
+	}
+
+	private, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("parse crypto key error: %w", err)
+	}
+
+	c.cryptoKey = &private.PublicKey
+	return nil
 }
