@@ -20,7 +20,7 @@ import (
 	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/listMetricService/v0"
 	subnetService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/subnetService/service"
-	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateBatchService/v0"
+	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateBatchService/service"
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateFlatService/v0"
 	updateService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateService/v0"
 )
@@ -36,7 +36,7 @@ type API struct {
 	logger logger.HTTPLogger
 
 	updateFlatService  *updateFlatService.Service
-	updateBatchService *updateBatchService.Service
+	updateBatchService updateBatchService.UpdateBatchService
 	updateService      *updateService.Service
 
 	getFlatService *getFlatService.Service
@@ -54,7 +54,7 @@ type API struct {
 func New(
 	logger logger.HTTPLogger,
 	updateFlatService *updateFlatService.Service,
-	updateBatchService *updateBatchService.Service,
+	updateBatchService updateBatchService.UpdateBatchService,
 	updateService *updateService.Service,
 	getFlatService *getFlatService.Service,
 	getService *getService.Service,

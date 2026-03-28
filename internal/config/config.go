@@ -11,6 +11,7 @@ import (
 	"github.com/caarlos0/env/v6"
 
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/config/db"
+	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/grpc/server"
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/logger"
 	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
 	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
@@ -23,6 +24,7 @@ import (
 
 type diConfig struct {
 	HTTP               HTTPServerConfig          `envPrefix:"HTTP_" json:"http"`
+	GRPC               server.Config             `envPrefix:"GRPC_" json:"grpc"`
 	Logger             logger.Config             `envPrefix:"LOGGER_" json:"logger"`
 	StoreInterval      time.Duration             `env:"STORE_INTERVAL" json:"storeInterval"`
 	FileStoragePath    string                    `env:"FILE_STORAGE_PATH" json:"fileStoragePath"`
@@ -100,6 +102,7 @@ func (cfg *diConfig) loadFromJSON(envPrefix string) {
 
 	var config struct {
 		Address       string `json:"address"`
+		RemoteAddress string `json:"remote_address"`
 		Restore       bool   `json:"restore"`
 		StoreInterval string `json:"store_interval"`
 		StoreFile     string `json:"store_file"`
@@ -121,6 +124,9 @@ func (cfg *diConfig) loadFromJSON(envPrefix string) {
 
 	if address := config.Address; address != "" {
 		cfg.HTTP.Address = address
+	}
+	if address := config.RemoteAddress; address != "" {
+		cfg.GRPC.Address = address
 	}
 	if restore := config.Restore; restore {
 		cfg.Restore = restore
@@ -147,6 +153,7 @@ func (cfg *diConfig) loadFromJSON(envPrefix string) {
 func (cfg *diConfig) loadFromArg() {
 	var config struct {
 		Address         string
+		RemoteAddress   string
 		Store           int
 		FileStoragePath string
 		Restore         bool
@@ -159,6 +166,7 @@ func (cfg *diConfig) loadFromArg() {
 	}
 
 	flag.StringVar(&config.Address, "a", "", "server net address")
+	flag.StringVar(&config.RemoteAddress, "remote-address", "", "remote server net address")
 	flag.IntVar(&config.Store, "i", 0, "store interval in seconds")
 	flag.StringVar(&config.FileStoragePath, "f", "", "dump file path")
 	flag.BoolVar(&config.Restore, "r", false, "restore dump file on start")
@@ -173,6 +181,9 @@ func (cfg *diConfig) loadFromArg() {
 
 	if address := config.Address; address != "" {
 		cfg.HTTP.Address = address
+	}
+	if address := config.RemoteAddress; address != "" {
+		cfg.GRPC.Address = address
 	}
 	if store := config.Store; store > 0 {
 		cfg.StoreInterval = time.Second * time.Duration(store)
@@ -213,6 +224,9 @@ func (cfg *diConfig) loadFromEnv(envPrefix string) {
 
 	if address := config.HTTP.Address; address != "" {
 		cfg.HTTP.Address = address
+	}
+	if address := config.GRPC.Address; address != "" {
+		cfg.GRPC.Address = address
 	}
 	if store := config.StoreInterval; store.String() != "0s" {
 		cfg.StoreInterval = store
