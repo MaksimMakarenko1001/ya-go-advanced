@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -19,6 +21,12 @@ var (
 )
 
 func main() {
+	certFile, keyFile, err := generateTLS()
+	if err != nil {
+		log.Printf("runtime error: %v", err)
+		os.Exit(1)
+	}
+
 	printBuildInfo()
 
 	log.Println("server starting")
@@ -36,7 +44,7 @@ func main() {
 		stopCh <- os.Kill
 	}()
 
-	di.Start(errCh)
+	di.Start(errCh, certFile, keyFile)
 
 	signal.Notify(stopCh, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
@@ -48,6 +56,21 @@ func main() {
 
 	di.Stop(stopCtx)
 	log.Println("server stoped")
+}
+
+func generateTLS() (certPath string, keyPath string, err error) {
+	tmp, err := os.MkdirTemp("", "tmp")
+	if err != nil {
+		return "", "", fmt.Errorf("create temporary directory error: %w", err)
+	}
+
+	cert, key := filepath.Join(tmp, "cert.pem"), filepath.Join(tmp, "key.pem")
+
+	if err := exec.Command("go", "run", "./cmd/tls/main.go", "-cert", cert, "-private", key).Run(); err != nil {
+		return "", "", fmt.Errorf("tls gen error: %w", err)
+	}
+
+	return cert, key, nil
 }
 
 func printBuildInfo() {

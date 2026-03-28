@@ -74,11 +74,11 @@ func genTLS(certPath, privatePath, host string, expiresIn time.Duration, organiz
 		return fmt.Errorf("encode private error: %w", err)
 	}
 
-	if err := os.WriteFile(certPath, certPEM.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(certPath, certPEM.Bytes(), 0600); err != nil {
 		return fmt.Errorf("write certificate error: %w", err)
 	}
 
-	if err := os.WriteFile(privatePath, privatePEM.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(privatePath, privatePEM.Bytes(), 0600); err != nil {
 		return fmt.Errorf("write private error: %w", err)
 	}
 

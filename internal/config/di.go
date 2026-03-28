@@ -18,7 +18,8 @@ import (
 	"github.com/MaksimMakarenko1001/ya-go-advanced/internal/repository/storage/pg"
 	auditFileService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditFileService/v0"
 	auditRemoteService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/auditRemoteService/v0"
-	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
+	decryptService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/service"
+	decryptServiceV0 "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/decryptService/v0"
 	dumpMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/dumpMetricService/v0"
 	getCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getCounterService/v0"
 	getFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getFlatService/v0"
@@ -26,6 +27,8 @@ import (
 	getService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/getService/v0"
 	hashService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/hashService/v0"
 	listMetricService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/listMetricService/v0"
+	subnetService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/subnetService/service"
+	subnetServiceV0 "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/subnetService/v0"
 	updateBatchService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateBatchService/v0"
 	updateCounterService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateCounterService/v0"
 	updateFlatService "github.com/MaksimMakarenko1001/ya-go-advanced/internal/service/updateFlatService/v0"
@@ -68,7 +71,8 @@ type DI struct {
 		dumpSyncMetricService *dumpMetricService.Service
 
 		hashService    *hashService.Service
-		decryptService *decryptService.Service
+		decryptService decryptService.DecryptService
+		subnetService  subnetService.SubnetService
 
 		auditFileService   *auditFileService.Service
 		auditRemoteService *auditRemoteService.Service
@@ -126,8 +130,6 @@ func (di *DI) initRepositories() {
 }
 
 func (di *DI) initServices() {
-	var errDecrypt error
-
 	di.services.included.updateCounterService = updateCounterService.New(di.repositories.pgStorage)
 	di.services.included.updateGaugeService = updateGaugeService.New(di.repositories.pgStorage)
 
@@ -152,10 +154,8 @@ func (di *DI) initServices() {
 
 	di.services.hashService = hashService.New(di.config.HashService)
 
-	di.services.decryptService, errDecrypt = decryptService.New(di.config.DecryptService)
-	if errDecrypt != nil {
-		log.Printf("decrypt service init error: %s", errDecrypt.Error())
-	}
+	di.services.decryptService = decryptServiceV0.New(di.config.DecryptService)
+	di.services.subnetService = subnetServiceV0.New(di.config.SubnetService)
 
 	di.services.auditFileService = auditFileService.New(di.config.AuditFileService, di.repositories.outbox, di.repositories.fileAuditor)
 	di.services.auditRemoteService = auditRemoteService.New(di.config.AuditRemoteService, di.repositories.outbox, di.repositories.remoteAuditor)
@@ -186,10 +186,11 @@ func (di *DI) initAPI() {
 		di.services.dumpSyncMetricService,
 		di.services.hashService,
 		di.services.decryptService,
+		di.services.subnetService,
 	)
 }
 
-func (di *DI) Start(errorCh chan<- error) {
+func (di *DI) Start(errorCh chan<- error, certFile string, keyFile string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	di.workers.auditFile.Start(ctx)
@@ -216,13 +217,14 @@ func (di *DI) Start(errorCh chan<- error) {
 			handler.MiddlewareCompress,
 			di.api.external.WithHash,
 			di.api.external.WithDecrypt,
+			di.api.external.WithTrustedSubnet,
 		),
 	}
 
 	go func() {
 		defer cancel()
 
-		if err := di.httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		if err := di.httpServer.ListenAndServeTLS(certFile, keyFile); !errors.Is(err, http.ErrServerClosed) {
 			errorCh <- err
 		}
 	}()

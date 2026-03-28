@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -40,7 +41,12 @@ type Client struct {
 }
 
 func NewClient(cfg Config) *Client {
-	httpClient := &http.Client{Timeout: cfg.Timeout}
+	httpClient := &http.Client{
+		Timeout: cfg.Timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
 
 	return &Client{
 		httpClient: httpClient,
@@ -58,7 +64,7 @@ func (c *Client) sendBatchJSON(batch []models.Metric) (err error) {
 	}
 
 	u := url.URL{
-		Scheme: "http",
+		Scheme: "https",
 		Host:   c.config.Address,
 		Path:   "/updates/",
 	}
@@ -329,6 +335,7 @@ func (c *Client) send(req *http.Request) (int, error) {
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
 	r.Header.Set("HashSHA256", hash)
+	r.Header.Set("X-Real-IP", "127.0.0.1")
 
 	resp, err := c.httpClient.Do(r)
 
