@@ -30,7 +30,7 @@ type diConfig struct {
 	Database           db.Config                 `envPrefix:"DATABASE_" json:"database"`
 	HashService        hashService.Config        `envPrefix:"HASH_SERVICE_" json:"hashService"`
 	DecryptService     decryptService.Config     `envPrefix:"DECRYPT_SERVICE_" json:"decryptService"`
-	SubnetService      subnetService.Config      `envPrefix:"SUBNET_SERVICE" json:"subnetService"`
+	SubnetService      subnetService.Config      `envPrefix:"SUBNET_SERVICE_" json:"subnetService"`
 	DumpService        dumpMetricService.Config  `envPrefix:"DUMP_SERVICE_" json:"dumpService"`
 	DumpSyncService    dumpMetricService.Config  `envPrefix:"DUMP_SYNC_SERVICE_" json:"dumpSyncService"`
 	AuditFileService   auditFileService.Config   `envPrefix:"AUDIT_FILE_SERVICE_" json:"auditFileService"`
